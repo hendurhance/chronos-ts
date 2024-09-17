@@ -20,6 +20,14 @@ export class Period {
     this.interval = interval;
   }
 
+  getStartDate(): Date {
+    return new Date(this.startDate);
+  }
+
+  getEndDate(): Date {
+    return new Date(this.endDate);
+  }
+
   contains(date: string | Date): boolean {
     const checkDate = new Date(date);
     return checkDate >= this.startDate && checkDate <= this.endDate;

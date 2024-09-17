@@ -65,13 +65,13 @@ const periodsOverlap = year2023.overlapsWith(q2_2023); // true
 
 // Get the overlapping period
 const overlap = year2023.overlap(q2_2023);
-console.log(overlap?.startDate, overlap?.endDate); // 2023-04-01, 2023-06-30
+console.log(overlap?.getStartDate()t, overlap?.getEndDate()); // 2023-04-01, 2023-06-30
 
 // Subtract a period
 const remainingPeriods = year2023.subtract(q2_2023);
 console.log(remainingPeriods.length); // 2
-console.log(remainingPeriods[0].startDate, remainingPeriods[0].endDate); // 2023-01-01, 2023-03-31
-console.log(remainingPeriods[1].startDate, remainingPeriods[1].endDate); // 2023-07-01, 2023-12-31
+console.log(remainingPeriods[0].getStartDate(), remainingPeriods[0].getEndDate()); // 2023-01-01, 2023-03-31
+console.log(remainingPeriods[1].getStartDate(), remainingPeriods[1].getEndDate()); // 2023-07-01, 2023-12-31
 
 // Create a period with an interval
 const weeklyPeriod = new Period('2023-01-01', '2023-12-31', Precision.WEEK, Interval.weeks(1));
@@ -82,7 +82,7 @@ console.log(weeklyDates?.length); // 53 (number of weeks in 2023)
 
 // Renew a period
 const nextYear = year2023.renew();
-console.log(nextYear.startDate, nextYear.endDate); // 2024-01-01, 2024-12-31
+console.log(nextYear.getStartDate(), nextYear.getEndDate()); // 2024-01-01, 2024-12-31
 
 // Use fluent API
 const customPeriod = new Period('2023-01-01', '2023-12-31')
@@ -255,7 +255,7 @@ const ytd = (currentQuarter: Period): Period => {
 };
 
 const q3YTD = ytd(q3_2023);
-console.log(`Q3 YTD period: ${q3YTD.startDate.toDateString()} - ${q3YTD.endDate.toDateString()}`);
+console.log(`Q3 YTD period: ${q3YTD.getStartDate().toDateString()} - ${q3YTD.getEndDate().toDateString()}`);
 
 // Calculate quarter-over-quarter growth
 const calculateQoQGrowth = (currentQuarter: number, previousQuarter: number): string => {
@@ -329,7 +329,7 @@ console.log(`There are ${overlappingTasks.length} overlapping tasks in the proje
 
 // Calculate project progress
 const calculateProgress = (currentDate: Date): number => {
-  const daysPassed = projectTimeline.startDate.getMinutesInInterval() / (24 * 60);
+  const daysPassed = new Period(projectTimeline.getStartDate(), currentDate, Precision.DAY).getDaysInInterval();
   const totalDays = projectTimeline.getDaysInInterval();
   return (daysPassed / totalDays) * 100;
 };
@@ -356,7 +356,7 @@ class Subscription {
   }
 
   getRenewalDate(): Date {
-    return this.getCurrentPeriod().endDate;
+    return this.getCurrentPeriod().getEndDate();
   }
 
   renew(): void {
@@ -372,16 +372,15 @@ const annualSubscription = new Subscription(new Date('2023-01-01'), 'annual');
 console.log(`Annual subscription active: ${annualSubscription.isActive()}`);
 console.log(`Annual subscription renewal date: ${annualSubscription.getRenewalDate().toDateString()}`);
 
-const annualSubscription = new Subscription(new Date('2023-01-01'), 'annual');
-console.log(`Annual subscription active: ${annualSubscription.isActive()}`);
-console.log(`Annual subscription renewal date: ${annualSubscription.getRenewalDate().toDateString()}`);
 // Check if a subscription will be active on a future date
 const futureDate = new Date('2023-12-15');
 console.log(`Monthly subscription active on ${futureDate.toDateString()}: ${monthlySubscription.isActive(futureDate)}`);
 console.log(`Annual subscription active on ${futureDate.toDateString()}: ${annualSubscription.isActive(futureDate)}`);
+
 // Renew a subscription
 monthlySubscription.renew();
-console.log(`Monthly subscription renewed. New period: ${monthlySubscription.getCurrentPeriod().startDate.toDateString()} - ${monthlySubscription.getCurrentPeriod().endDate.toDateString()})`;
+const renewedPeriod = monthlySubscription.getCurrentPeriod();
+console.log(`Monthly subscription renewed. New period: ${renewedPeriod.getStartDate().toDateString()} - ${renewedPeriod.getEndDate().toDateString()}`);
 ```
 
 **6. Employee Shift Management**
@@ -473,8 +472,8 @@ class Itinerary {
 
   getDuration(): number {
     if (this.events.length === 0) return 0;
-    const start = this.events.reduce((min, e) => e.startDate < min ? e.startDate : min, this.events[0].startDate);
-    const end = this.events.reduce((max, e) => e.endDate > max ? e.endDate : max, this.events[0].endDate);
+    const start = this.events.reduce((min, e) => e.getStartDate() < min ? e.getStartDate() : min, this.events[0].getStartDate());
+    const end = this.events.reduce((max, e) => e.getEndDate() > max ? e.getEndDate() : max, this.events[0].getEndDate());
     return new Period(start, end, Precision.HOUR).getDaysInInterval();
   }
 }
