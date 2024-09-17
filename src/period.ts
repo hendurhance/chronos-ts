@@ -8,6 +8,14 @@ export class Period {
   private precision: Precision;
   private interval: Interval | null;
 
+  /**
+   * Constructs a new Period instance.
+   *
+   * @param start - The start date of the period, either as a string or a Date object.
+   * @param end - The end date of the period, either as a string or a Date object.
+   * @param precision - The precision level of the period, defaulting to Precision.DAY.
+   * @param interval - An optional interval associated with the period, defaulting to null.
+   */
   constructor(
     start: string | Date,
     end: string | Date,
@@ -20,23 +28,54 @@ export class Period {
     this.interval = interval;
   }
 
+  /**
+   * Retrieves the start date of the period.
+   *
+   * @returns {Date} The start date as a Date object.
+   */
   getStartDate(): Date {
     return new Date(this.startDate);
   }
 
+  /**
+   * Retrieves the end date of the period.
+   *
+   * @returns {Date} The end date as a Date object.
+   */
   getEndDate(): Date {
     return new Date(this.endDate);
   }
 
+  /**
+   * Checks if a given date is within the period defined by `startDate` and `endDate`.
+   *
+   * @param date - The date to check, either as a string or a Date object.
+   * @returns `true` if the date is within the period, `false` otherwise.
+   */
   contains(date: string | Date): boolean {
     const checkDate = new Date(date);
     return checkDate >= this.startDate && checkDate <= this.endDate;
   }
 
+  /**
+   * Determines if the current period overlaps with another period.
+   *
+   * @param other - The other period to compare with.
+   * @returns `true` if the periods overlap, otherwise `false`.
+   */
   overlapsWith(other: Period): boolean {
     return this.startDate < other.endDate && this.endDate > other.startDate;
   }
 
+  /**
+   * Determines if the current period is adjacent to another period.
+   * 
+   * Two periods are considered adjacent if they do not overlap and the gap 
+   * between them is within one precision unit of the larger precision of the two periods.
+   * 
+   * @param other - The other period to compare with.
+   * @returns `true` if the periods are adjacent, `false` otherwise.
+   */
   isAdjacentTo(other: Period): boolean {
     const thisPrecisionMs = getPrecisionInMilliseconds(this.precision);
     const otherPrecisionMs = getPrecisionInMilliseconds(other.precision);
@@ -62,6 +101,11 @@ export class Period {
     );
   }
 
+  /**
+   * Retrieves an array of dates within the specified interval.
+   * 
+   * @returns {Date[] | null} An array of dates if the interval is defined, otherwise `null`.
+   */
   getDatesInInterval(): Date[] | null {
     if (this.interval) {
       return getDatesWithInterval(this.startDate, this.endDate, this.interval);
@@ -69,24 +113,52 @@ export class Period {
     return null;
   }
 
+  /**
+   * Calculates the number of minutes in the interval between the start and end dates.
+   *
+   * @returns {number} The number of minutes between the start and end dates.
+   */
   getMinutesInInterval(): number {
     return Math.floor(
       (this.endDate.getTime() - this.startDate.getTime()) / (1000 * 60),
     );
   }
 
+  /**
+   * Calculates the number of whole hours in the interval.
+   *
+   * @returns {number} The number of whole hours in the interval.
+   */
   getHoursInInterval(): number {
     return Math.floor(this.getMinutesInInterval() / 60);
   }
 
+  /**
+   * Calculates the number of whole days in the interval.
+   *
+   * @returns The number of whole days in the interval.
+   */
   getDaysInInterval(): number {
     return Math.floor(this.getHoursInInterval() / 24);
   }
 
+  /**
+   * Calculates the number of whole weeks in the interval.
+   *
+   * @returns The number of whole weeks in the interval.
+   */
   getWeeksInInterval(): number {
     return Math.floor(this.getDaysInInterval() / 7);
   }
 
+  /**
+   * Calculates the number of whole months in the interval between the start and end dates.
+   *
+   * This method computes the difference in months between the `startDate` and `endDate` properties.
+   * It adjusts for month boundaries by decrementing the month count if the end date's day is less than the start date's day.
+   *
+   * @returns {number} The number of whole months in the interval.
+   */
   getMonthsInInterval(): number {
     let months =
       (this.endDate.getFullYear() - this.startDate.getFullYear()) * 12;
@@ -100,10 +172,20 @@ export class Period {
     return months;
   }
 
+  /**
+   * Calculates the number of whole years in the interval.
+   *
+   * @returns The number of whole years in the interval.
+   */
   getYearsInInterval(): number {
     return Math.floor(this.getMonthsInInterval() / 12);
   }
 
+  /**
+   * Calculates the length of the period in the specified precision.
+   *
+   * @returns {number} The length of the period, rounded down to the nearest whole number.
+   */
   length(): number {
     return Math.floor(
       (this.endDate.getTime() - this.startDate.getTime()) /
@@ -111,6 +193,12 @@ export class Period {
     );
   }
 
+  /**
+   * Determines the overlapping period between this period and another period.
+   *
+   * @param other - The other period to check for overlap with.
+   * @returns The overlapping period as a new `Period` instance, or `null` if there is no overlap.
+   */
   overlap(other: Period): Period | null {
     if (!this.overlapsWith(other)) {
       return null;
@@ -124,6 +212,14 @@ export class Period {
     return new Period(start, end, this.precision);
   }
 
+  /**
+   * Subtracts the given period from the current period and returns the resulting periods.
+   * If the periods do not overlap, the current period is returned as a single-element array.
+   * If they do overlap, the resulting periods are returned as an array.
+   *
+   * @param other - The period to subtract from the current period.
+   * @returns An array of resulting periods after subtraction.
+   */
   subtract(other: Period): Period[] {
     if (!this.overlapsWith(other)) {
       return [this];
@@ -142,6 +238,14 @@ export class Period {
     return periods;
   }
 
+  /**
+   * Calculates the gap between this period and another period.
+   * If the periods overlap or are adjacent, returns null.
+   * Otherwise, returns a new Period representing the gap between the two periods.
+   *
+   * @param other - The other period to compare with.
+   * @returns A new Period representing the gap, or null if the periods overlap or are adjacent.
+   */
   gap(other: Period): Period | null {
     if (this.overlapsWith(other) || this.isAdjacentTo(other)) {
       return null;
@@ -159,6 +263,15 @@ export class Period {
     );
   }
 
+  /**
+   * Computes the symmetric difference between this period and another period.
+   * The symmetric difference is defined as the set of periods that are in either
+   * of the two periods but not in their intersection.
+   *
+   * @param other - The other period to compute the symmetric difference with.
+   * @returns An array of periods representing the symmetric difference, sorted
+   *          by start date and merged if adjacent.
+   */
   symmetricDifference(other: Period): Period[] {
     const periods: Period[] = [];
 
@@ -206,6 +319,13 @@ export class Period {
     return merged;
   }
 
+  /**
+   * Renews the current period by creating a new `Period` instance.
+   * The new period starts immediately after the end of the current period
+   * and has the same length and precision.
+   *
+   * @returns {Period} A new `Period` instance with updated start and end dates.
+   */
   renew(): Period {
     const length = this.length();
     const newStart = new Date(
@@ -217,6 +337,14 @@ export class Period {
     return new Period(newStart, newEnd, this.precision, this.interval);
   }
 
+  /**
+   * Computes the union of this period with another period.
+   * If the periods overlap or are adjacent, they are merged into a single period.
+   * Otherwise, the periods are returned as separate, sorted periods.
+   *
+   * @param other - The other period to union with this period.
+   * @returns An array of periods resulting from the union operation.
+   */
   union(other: Period): Period[] {
     if (this.overlapsWith(other) || this.isAdjacentTo(other)) {
       const start = new Date(
@@ -233,21 +361,45 @@ export class Period {
   }
 
   // Fluent API methods
+  /**
+   * Sets the start date for the period.
+   *
+   * @param start - The start date, which can be a string or a Date object.
+   * @returns The current instance for method chaining.
+   */
   setStart(start: string | Date): this {
     this.startDate = new Date(start);
     return this;
   }
 
+  /**
+   * Sets the end date for the period.
+   *
+   * @param end - The end date as a string or Date object.
+   * @returns The current instance for method chaining.
+   */
   setEnd(end: string | Date): this {
     this.endDate = new Date(end);
     return this;
   }
 
+  /**
+   * Sets the precision for the period.
+   *
+   * @param precision - The precision to set.
+   * @returns The current instance for method chaining.
+   */
   setPrecision(precision: Precision): this {
     this.precision = precision;
     return this;
   }
 
+  /**
+   * Sets the interval for the period.
+   *
+   * @param interval - The interval to be set.
+   * @returns The current instance of the period.
+   */
   setInterval(interval: Interval): this {
     this.interval = interval;
     return this;
