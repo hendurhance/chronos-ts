@@ -65,7 +65,7 @@ const periodsOverlap = year2023.overlapsWith(q2_2023); // true
 
 // Get the overlapping period
 const overlap = year2023.overlap(q2_2023);
-console.log(overlap?.getStartDate()t, overlap?.getEndDate()); // 2023-04-01, 2023-06-30
+console.log(overlap?.getStartDate(), overlap?.getEndDate()); // 2023-04-01, 2023-06-30
 
 // Subtract a period
 const remainingPeriods = year2023.subtract(q2_2023);
@@ -186,7 +186,8 @@ Static Methods
 #### Enums
 ##### Precision
 The Precision enum represents different levels of time precision.
-typescriptCopyenum Precision {
+```typescript
+enum Precision {
     MINUTE = 'minute',
     HOUR = 'hour',
     DAY = 'day',
@@ -194,7 +195,7 @@ typescriptCopyenum Precision {
     MONTH = 'month',
     YEAR = 'year',
 }
-
+```
 ### Utility Function
 The package includes various utility functions for working with dates:
 
