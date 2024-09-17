@@ -2,13 +2,13 @@ import { Interval } from './interval';
 import { Precision } from './precision';
 
 /**
- * Generates an array of dates between the given start and end dates, 
+ * Generates an array of dates between the given start and end dates,
  * with a specified interval between each date.
  *
  * @param start - The start date.
  * @param end - The end date.
  * @param interval - An object representing the interval between dates.
- * @returns An array of dates between the start and end dates, inclusive, 
+ * @returns An array of dates between the start and end dates, inclusive,
  *          with the specified interval.
  */
 export function getDatesWithInterval(
@@ -61,7 +61,7 @@ export function getWeeksWithInterval(
 }
 
 /**
- * Generates an array of dates between the start and end dates, inclusive, 
+ * Generates an array of dates between the start and end dates, inclusive,
  * with a specified interval.
  *
  * @param start - The start date.
@@ -205,7 +205,7 @@ export function getYearsWithInterval(
  * @param date - The original date to which the amount will be added.
  * @param amount - The amount of time to add. Can be positive or negative.
  * @param unit - The unit of time to add (e.g., minute, hour, day, week, month, year).
- * 
+ *
  * @returns A new `Date` object with the specified amount of time added.
  *
  * @example
@@ -306,7 +306,7 @@ export function getWeekNumber(date: Date): number {
 
 /**
  * Returns the quarter of the year for a given date.
- * 
+ *
  * @param date - The date object for which to determine the quarter.
  * @returns The quarter of the year (1, 2, 3, or 4).
  */

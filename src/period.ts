@@ -69,10 +69,10 @@ export class Period {
 
   /**
    * Determines if the current period is adjacent to another period.
-   * 
-   * Two periods are considered adjacent if they do not overlap and the gap 
+   *
+   * Two periods are considered adjacent if they do not overlap and the gap
    * between them is within one precision unit of the larger precision of the two periods.
-   * 
+   *
    * @param other - The other period to compare with.
    * @returns `true` if the periods are adjacent, `false` otherwise.
    */
@@ -103,7 +103,7 @@ export class Period {
 
   /**
    * Retrieves an array of dates within the specified interval.
-   * 
+   *
    * @returns {Date[] | null} An array of dates if the interval is defined, otherwise `null`.
    */
   getDatesInInterval(): Date[] | null {

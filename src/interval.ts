@@ -7,7 +7,7 @@ export class Interval {
 
   /**
    * Constructs a new instance of the Interval class.
-   * 
+   *
    * @param minutes - The number of minutes (default is 0).
    * @param hours - The number of hours (default is 0).
    * @param days - The number of days (default is 0).
