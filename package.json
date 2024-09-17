@@ -1,0 +1,68 @@
+{
+  "name": "chronos-ts",
+  "version": "1.0.0",
+  "description": "A comprehensive TypeScript package for handling time periods, intervals, and date-related operations.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "format": "prettier --write 'src/**/*.{ts,js,json,md}'",
+    "lint": "eslint 'src/**/*.{ts,js}'",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run format && npm run lint && npm test",
+    "postpublish": "git push --follow-tags"
+  },
+  "keywords": [
+    "time",
+    "date",
+    "period",
+    "interval",
+    "duration",
+    "range",
+    "typescript",
+    "calendar",
+    "datetime",
+    "time-management",
+    "date-range",
+    "date-manipulation",
+    "time-utils",
+    "date-utils",
+    "temporal",
+    "scheduling",
+    "time-period",
+    "date-interval",
+    "time-arithmetic",
+    "date-arithmetic"
+  ],
+  "files": [
+    "dist/**",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hendurhance/chronos-ts.git"
+  },
+  "author": "Josiah Endurance",
+  "homepage": "https://github.com/hendurhance/chronos-ts#readme",
+  "contributors": [
+    {
+      "name": "Josiah Endurance",
+      "email": "hendurhance.dev@gmail.com"
+    }
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.10.0",
+    "@types/eslint__js": "^8.42.3",
+    "@types/jest": "^29.5.13",
+    "@types/node": "^22.5.5",
+    "eslint": "^9.10.0",
+    "globals": "^15.9.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.3.3",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.6.0"
+  }
+}
