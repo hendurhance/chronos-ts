@@ -133,7 +133,7 @@ const isLeap = isLeapYear(2024); // true
 
 
 ## API Reference
-## #Classes
+### Classes
 #### Period
 The `Period` class represents a time period with a start date, end date, precision, and optional interval.
 
