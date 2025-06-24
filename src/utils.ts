@@ -41,19 +41,22 @@ export function getWeeksWithInterval(
   interval: Interval,
 ): Date[] {
   const weeks: Date[] = [];
-  let current = new Date(
+  const current = new Date(
     Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
   );
 
   // Move to the start of the week (Sunday)
   current.setUTCDate(current.getUTCDate() - current.getUTCDay());
 
-  const weekIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / (7 * 24 * 60)));
+  const weekIncrement = Math.max(
+    1,
+    Math.round(interval.getMinutesInterval() / (7 * 24 * 60)),
+  );
 
   while (current <= end) {
     weeks.push(new Date(current));
     // Add weeks based on the interval
-    current.setUTCDate(current.getUTCDate() + (weekIncrement * 7));
+    current.setUTCDate(current.getUTCDate() + weekIncrement * 7);
   }
 
   return weeks;
@@ -77,7 +80,10 @@ export function getDaysWithInterval(
   const current = new Date(start);
   current.setUTCHours(0, 0, 0, 0);
 
-  const dayIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / (24 * 60)));
+  const dayIncrement = Math.max(
+    1,
+    Math.round(interval.getMinutesInterval() / (24 * 60)),
+  );
 
   while (current <= end) {
     days.push(new Date(current));
@@ -105,7 +111,10 @@ export function getHoursWithInterval(
   const current = new Date(start);
   current.setMinutes(0, 0, 0);
 
-  const hourIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / 60));
+  const hourIncrement = Math.max(
+    1,
+    Math.round(interval.getMinutesInterval() / 60),
+  );
 
   while (current <= end) {
     hours.push(new Date(current));
@@ -163,7 +172,10 @@ export function getMonthsWithInterval(
   );
 
   // Use approximation of 30 days per month for interval calculation
-  const monthIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / (30 * 24 * 60)));
+  const monthIncrement = Math.max(
+    1,
+    Math.round(interval.getMinutesInterval() / (30 * 24 * 60)),
+  );
 
   while (current <= end) {
     months.push(new Date(current));
@@ -410,7 +422,9 @@ export function parseDate(dateString: string, format: string): Date {
   const dateParts = dateString.match(/\d+/g) || [];
 
   if (formatParts.length !== dateParts.length) {
-    throw new Error(`Date string "${dateString}" does not match the specified format "${format}"`);
+    throw new Error(
+      `Date string "${dateString}" does not match the specified format "${format}"`,
+    );
   }
 
   const map: { [key: string]: number } = {};
@@ -426,7 +440,7 @@ export function parseDate(dateString: string, format: string): Date {
   const second = map['ss'] || 0;
 
   const result = new Date(year, month, day, hour, minute, second);
-  
+
   // Validate the resulting date
   if (isNaN(result.getTime())) {
     throw new Error(`Invalid date components parsed from "${dateString}"`);
@@ -448,7 +462,7 @@ export function range(start: number, end: number, step: number = 1): number[] {
   if (step === 0) {
     throw new Error('Step cannot be zero');
   }
-  
+
   if ((end > start && step < 0) || (end < start && step > 0)) {
     throw new Error('Step direction must match the range direction');
   }

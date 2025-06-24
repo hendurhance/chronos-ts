@@ -25,18 +25,18 @@ export class Period {
   ) {
     this.startDate = this.validateDate(start);
     this.endDate = this.validateDate(end);
-    
+
     if (this.startDate > this.endDate) {
       throw new Error('Start date must be before or equal to end date');
     }
-    
+
     this.precision = precision;
     this.interval = interval;
   }
 
   /**
    * Validates and converts a date input to a Date object.
-   * 
+   *
    * @param date - The date to validate, either as a string or Date object.
    * @returns A valid Date object.
    * @throws {Error} If the date is invalid.
