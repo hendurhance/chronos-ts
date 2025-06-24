@@ -44,17 +44,16 @@ export function getWeeksWithInterval(
   let current = new Date(
     Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
   );
+
   // Move to the start of the week (Sunday)
   current.setUTCDate(current.getUTCDate() - current.getUTCDay());
 
+  const weekIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / (7 * 24 * 60)));
+
   while (current <= end) {
     weeks.push(new Date(current));
-    // Add the interval in minutes, converted to milliseconds
-    current = new Date(
-      current.getTime() + interval.getMinutesInterval() * 60000,
-    );
-    // Ensure we're at the start of the week
-    current.setUTCDate(current.getUTCDate() - current.getUTCDay());
+    // Add weeks based on the interval
+    current.setUTCDate(current.getUTCDate() + (weekIncrement * 7));
   }
 
   return weeks;
@@ -78,11 +77,11 @@ export function getDaysWithInterval(
   const current = new Date(start);
   current.setUTCHours(0, 0, 0, 0);
 
+  const dayIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / (24 * 60)));
+
   while (current <= end) {
     days.push(new Date(current));
-    current.setUTCDate(
-      current.getUTCDate() + interval.getMinutesInterval() / (24 * 60),
-    );
+    current.setUTCDate(current.getUTCDate() + dayIncrement);
   }
 
   return days;
@@ -106,9 +105,11 @@ export function getHoursWithInterval(
   const current = new Date(start);
   current.setMinutes(0, 0, 0);
 
+  const hourIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / 60));
+
   while (current <= end) {
     hours.push(new Date(current));
-    current.setHours(current.getHours() + interval.getMinutesInterval() / 60);
+    current.setHours(current.getHours() + hourIncrement);
   }
 
   return hours;
@@ -132,9 +133,11 @@ export function getMinutesWithInterval(
   const current = new Date(start);
   current.setSeconds(0, 0);
 
+  const minuteIncrement = Math.max(1, interval.getMinutesInterval());
+
   while (current <= end) {
     minutes.push(new Date(current));
-    current.setMinutes(current.getMinutes() + interval.getMinutesInterval());
+    current.setMinutes(current.getMinutes() + minuteIncrement);
   }
 
   return minutes;
@@ -159,11 +162,12 @@ export function getMonthsWithInterval(
     Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1),
   );
 
+  // Use approximation of 30 days per month for interval calculation
+  const monthIncrement = Math.max(1, Math.round(interval.getMinutesInterval() / (30 * 24 * 60)));
+
   while (current <= end) {
     months.push(new Date(current));
-    current.setUTCMonth(
-      current.getUTCMonth() + interval.getMinutesInterval() / (30 * 24 * 60),
-    );
+    current.setUTCMonth(current.getUTCMonth() + monthIncrement);
   }
 
   return months;
@@ -186,13 +190,14 @@ export function getYearsWithInterval(
   const years: Date[] = [];
   const current = new Date(Date.UTC(start.getUTCFullYear(), 0, 1));
 
+  // Calculate the number of years to add based on the interval
+  const yearsToAdd = Math.max(
+    1,
+    Math.round(interval.getMinutesInterval() / 525600),
+  ); // 525600 minutes in a year
+
   while (current <= end) {
     years.push(new Date(current));
-    // Calculate the number of years to add based on the interval
-    const yearsToAdd = Math.max(
-      1,
-      Math.round(interval.getMinutesInterval() / 525600),
-    ); // 525600 minutes in a year
     current.setUTCFullYear(current.getUTCFullYear() + yearsToAdd);
   }
 
@@ -227,6 +232,7 @@ export function addToDate(date: Date, amount: number, unit: Precision): Date {
       date.getUTCMilliseconds(),
     ),
   );
+
   switch (unit) {
     case Precision.MINUTE:
       newDate.setUTCMinutes(newDate.getUTCMinutes() + amount);
@@ -242,14 +248,22 @@ export function addToDate(date: Date, amount: number, unit: Precision): Date {
       break;
     case Precision.MONTH:
       newDate.setUTCMonth(newDate.getUTCMonth() + amount);
+      // Handle month overflow for dates that don't exist in the target month
       if (newDate.getUTCDate() !== date.getUTCDate()) {
         newDate.setUTCDate(0); // Set to last day of previous month
       }
       break;
     case Precision.YEAR:
       newDate.setUTCFullYear(newDate.getUTCFullYear() + amount);
+      // Handle leap year edge case (Feb 29 -> Feb 28)
+      if (newDate.getUTCMonth() !== date.getUTCMonth()) {
+        newDate.setUTCDate(0); // Set to last day of previous month
+      }
       break;
+    default:
+      throw new Error(`Unsupported precision unit: ${unit}`);
   }
+
   return newDate;
 }
 
@@ -361,7 +375,10 @@ export function getDaysInMonth(year: number, month: number): number {
  * @returns The formatted date string.
  */
 export function formatDate(date: Date, format: string): string {
-  const pad = (n: number): string => n.toString().padStart(2, '0');
+  const pad = (n: number): string => {
+    const str = n.toString();
+    return str.length < 2 ? '0' + str : str;
+  };
   const map: { [key: string]: string } = {
     YYYY: date.getFullYear().toString(),
     MM: pad(date.getMonth() + 1),
@@ -370,6 +387,7 @@ export function formatDate(date: Date, format: string): string {
     mm: pad(date.getMinutes()),
     ss: pad(date.getSeconds()),
   };
+
   return format.replace(/YYYY|MM|DD|HH|mm|ss/gi, (matched) => map[matched]);
 }
 
@@ -379,6 +397,7 @@ export function formatDate(date: Date, format: string): string {
  * @param dateString - The date string to parse.
  * @param format - The format of the date string. Supported format parts are YYYY, MM, DD, HH, mm, ss.
  * @returns A Date object representing the parsed date.
+ * @throws {Error} If the date string doesn't match the specified format.
  *
  * @example
  * ```typescript
@@ -387,22 +406,33 @@ export function formatDate(date: Date, format: string): string {
  * ```
  */
 export function parseDate(dateString: string, format: string): Date {
-  const map: { [key: string]: number } = {};
   const formatParts = format.match(/YYYY|MM|DD|HH|mm|ss/gi) || [];
   const dateParts = dateString.match(/\d+/g) || [];
 
+  if (formatParts.length !== dateParts.length) {
+    throw new Error(`Date string "${dateString}" does not match the specified format "${format}"`);
+  }
+
+  const map: { [key: string]: number } = {};
   formatParts.forEach((part, index) => {
-    map[part] = parseInt(dateParts[index]);
+    map[part] = parseInt(dateParts[index], 10);
   });
 
-  return new Date(
-    map['YYYY'] || 0,
-    (map['MM'] || 1) - 1,
-    map['DD'] || 1,
-    map['HH'] || 0,
-    map['mm'] || 0,
-    map['ss'] || 0,
-  );
+  const year = map['YYYY'] || 0;
+  const month = (map['MM'] || 1) - 1; // JavaScript months are 0-indexed
+  const day = map['DD'] || 1;
+  const hour = map['HH'] || 0;
+  const minute = map['mm'] || 0;
+  const second = map['ss'] || 0;
+
+  const result = new Date(year, month, day, hour, minute, second);
+  
+  // Validate the resulting date
+  if (isNaN(result.getTime())) {
+    throw new Error(`Invalid date components parsed from "${dateString}"`);
+  }
+
+  return result;
 }
 
 /**
@@ -412,10 +442,17 @@ export function parseDate(dateString: string, format: string): Date {
  * @param end - The ending number of the range.
  * @param step - The step between each number in the range. Defaults to 1.
  * @returns An array of numbers from start to end, incremented by step.
+ * @throws {Error} If step is zero or has the wrong sign.
  */
 export function range(start: number, end: number, step: number = 1): number[] {
-  return Array.from(
-    { length: Math.floor((end - start) / step) + 1 },
-    (_, i) => start + i * step,
-  );
+  if (step === 0) {
+    throw new Error('Step cannot be zero');
+  }
+  
+  if ((end > start && step < 0) || (end < start && step > 0)) {
+    throw new Error('Step direction must match the range direction');
+  }
+
+  const length = Math.floor(Math.abs(end - start) / Math.abs(step)) + 1;
+  return Array.from({ length }, (_, i) => start + i * step);
 }

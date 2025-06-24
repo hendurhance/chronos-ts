@@ -15,6 +15,7 @@ export class Period {
    * @param end - The end date of the period, either as a string or a Date object.
    * @param precision - The precision level of the period, defaulting to Precision.DAY.
    * @param interval - An optional interval associated with the period, defaulting to null.
+   * @throws {Error} If start date is after end date or if dates are invalid.
    */
   constructor(
     start: string | Date,
@@ -22,10 +23,30 @@ export class Period {
     precision: Precision = Precision.DAY,
     interval: Interval | null = null,
   ) {
-    this.startDate = new Date(start);
-    this.endDate = new Date(end);
+    this.startDate = this.validateDate(start);
+    this.endDate = this.validateDate(end);
+    
+    if (this.startDate > this.endDate) {
+      throw new Error('Start date must be before or equal to end date');
+    }
+    
     this.precision = precision;
     this.interval = interval;
+  }
+
+  /**
+   * Validates and converts a date input to a Date object.
+   * 
+   * @param date - The date to validate, either as a string or Date object.
+   * @returns A valid Date object.
+   * @throws {Error} If the date is invalid.
+   */
+  private validateDate(date: string | Date): Date {
+    const result = new Date(date);
+    if (isNaN(result.getTime())) {
+      throw new Error(`Invalid date: ${date}`);
+    }
+    return result;
   }
 
   /**
@@ -53,7 +74,7 @@ export class Period {
    * @returns `true` if the date is within the period, `false` otherwise.
    */
   contains(date: string | Date): boolean {
-    const checkDate = new Date(date);
+    const checkDate = this.validateDate(date);
     return checkDate >= this.startDate && checkDate <= this.endDate;
   }
 
@@ -80,7 +101,6 @@ export class Period {
     const thisPrecisionMs = getPrecisionInMilliseconds(this.precision);
     const otherPrecisionMs = getPrecisionInMilliseconds(other.precision);
     const maxPrecisionMs = Math.max(thisPrecisionMs, otherPrecisionMs);
-
     const thisEndTime = this.endDate.getTime();
     const otherStartTime = other.startDate.getTime();
     const thisStartTime = this.startDate.getTime();
@@ -168,8 +188,7 @@ export class Period {
     if (this.endDate.getDate() < this.startDate.getDate()) {
       months--;
     }
-
-    return months;
+    return Math.max(0, months);
   }
 
   /**
@@ -203,12 +222,14 @@ export class Period {
     if (!this.overlapsWith(other)) {
       return null;
     }
+
     const start = new Date(
       Math.max(this.startDate.getTime(), other.startDate.getTime()),
     );
     const end = new Date(
       Math.min(this.endDate.getTime(), other.endDate.getTime()),
     );
+
     return new Period(start, end, this.precision);
   }
 
@@ -227,14 +248,16 @@ export class Period {
 
     const periods: Period[] = [];
 
+    // Add period before the overlap (if any)
     if (this.startDate < other.startDate) {
-      const endDate = new Date(other.startDate.getTime() - 1);
-      periods.push(new Period(this.startDate, endDate, this.precision));
+      periods.push(new Period(this.startDate, other.startDate, this.precision));
     }
+
+    // Add period after the overlap (if any)
     if (this.endDate > other.endDate) {
-      const startDate = new Date(other.endDate.getTime() + 1);
-      periods.push(new Period(startDate, this.endDate, this.precision));
+      periods.push(new Period(other.endDate, this.endDate, this.precision));
     }
+
     return periods;
   }
 
@@ -251,16 +274,22 @@ export class Period {
       return null;
     }
 
-    const precisionMs = getPrecisionInMilliseconds(this.precision);
-    const start = this.endDate < other.startDate ? this.endDate : other.endDate;
-    const end =
-      this.startDate > other.startDate ? this.startDate : other.startDate;
+    let start: Date, end: Date;
 
-    return new Period(
-      new Date(start.getTime() + precisionMs),
-      new Date(end.getTime() - precisionMs),
-      this.precision,
-    );
+    if (this.endDate < other.startDate) {
+      start = this.endDate;
+      end = other.startDate;
+    } else {
+      start = other.endDate;
+      end = this.startDate;
+    }
+
+    // Ensure start is before end for valid Period creation
+    if (start >= end) {
+      return null;
+    }
+
+    return new Period(start, end, this.precision);
   }
 
   /**
@@ -274,7 +303,6 @@ export class Period {
    */
   symmetricDifference(other: Period): Period[] {
     const periods: Period[] = [];
-
     const overlapPeriod = this.overlap(other);
 
     if (!overlapPeriod) {
@@ -328,12 +356,10 @@ export class Period {
    */
   renew(): Period {
     const length = this.length();
-    const newStart = new Date(
-      this.endDate.getTime() + getPrecisionInMilliseconds(this.precision),
-    );
-    const newEnd = new Date(
-      newStart.getTime() + length * getPrecisionInMilliseconds(this.precision),
-    );
+    const precisionMs = getPrecisionInMilliseconds(this.precision);
+    const newStart = new Date(this.endDate.getTime() + precisionMs);
+    const newEnd = new Date(newStart.getTime() + length * precisionMs);
+
     return new Period(newStart, newEnd, this.precision, this.interval);
   }
 
@@ -355,20 +381,27 @@ export class Period {
       );
       return [new Period(start, end, this.precision)];
     }
+
     return [this, other].sort(
       (a, b) => a.startDate.getTime() - b.startDate.getTime(),
     );
   }
 
   // Fluent API methods
+
   /**
    * Sets the start date for the period.
    *
    * @param start - The start date, which can be a string or a Date object.
    * @returns The current instance for method chaining.
+   * @throws {Error} If the new start date is after the current end date.
    */
   setStart(start: string | Date): this {
-    this.startDate = new Date(start);
+    const newStartDate = this.validateDate(start);
+    if (newStartDate > this.endDate) {
+      throw new Error('Start date must be before or equal to end date');
+    }
+    this.startDate = newStartDate;
     return this;
   }
 
@@ -377,9 +410,14 @@ export class Period {
    *
    * @param end - The end date as a string or Date object.
    * @returns The current instance for method chaining.
+   * @throws {Error} If the new end date is before the current start date.
    */
   setEnd(end: string | Date): this {
-    this.endDate = new Date(end);
+    const newEndDate = this.validateDate(end);
+    if (newEndDate < this.startDate) {
+      throw new Error('End date must be after or equal to start date');
+    }
+    this.endDate = newEndDate;
     return this;
   }
 

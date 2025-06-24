@@ -2,24 +2,36 @@
 Chronos-ts from the name is inspired by the Greek god of time, Chronos. It is a comprehensive TypeScript package for handling time periods, intervals, and date-related operations.
 
 ## Table of Contents
-- [Installation](#installation)
-- [Overview](#overview)
-- [Usage](#usage)
-- [API Reference](#api-reference)
+- [Chronos-ts ⏰](#chronos-ts-)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Overview](#overview)
+  - [Usage](#usage)
+    - [Creating and Manipulating Periods](#creating-and-manipulating-periods)
+    - [Working with Intervals](#working-with-intervals)
+    - [Using Utility Functions](#using-utility-functions)
+  - [API Reference](#api-reference)
     - [Classes](#classes)
-        - [Period](#period)
-        - [Interval](#interval)
-    - [Enums](#enums)
-    - [Precision](#precision)
+      - [Period](#period)
+        - [Constructor](#constructor)
+        - [Methods](#methods)
+        - [Fluent API Methods](#fluent-api-methods)
+      - [Interval](#interval)
+        - [Methods](#methods-1)
+      - [Enums](#enums)
+        - [Precision](#precision)
     - [Utility Function](#utility-function)
     - [Real-world Scenarios](#real-world-scenarios)
-        - [Event Planning and Management](#event-planning-and-management)
-        - [Financial Reporting Periods](#financial-reporting-periods)
-        - [Employee Leave Management](#employee-leave-management)
-        - [Project Timeline Management](#project-timeline-management)
-        - [Subscription Billing Cycle Management](#subscription-billing-cycle-management)
-        - [Employee Shift Management](#employee-shift-management)
-        - [Travel Itinerary Planning](#travel-itinerary-planning)
+      - [**1. Event Planning and Management**](#1-event-planning-and-management)
+      - [**2. Financial  Reporting Periods**](#2-financial--reporting-periods)
+      - [**3. Employee Leave Management**](#3-employee-leave-management)
+      - [**4.  Project Timeline Management**](#4--project-timeline-management)
+      - [**5. Subscription Billing Cycle Management**](#5-subscription-billing-cycle-management)
+      - [**6. Employee Shift Management**](#6-employee-shift-management)
+      - [**7. Travel Itinerary Planning**](#7-travel-itinerary-planning)
+  - [Contributing 🤝](#contributing-)
+  - [License 📝](#license-)
+  - [Acknowledgements 🙏](#acknowledgements-)
 
 ## Installation
 ```bash
@@ -48,7 +60,7 @@ Whether you're building scheduling systems, financial applications, or any proje
 
 ## Usage
 ### Creating and Manipulating Periods
-````typescript
+```typescript
 import { Period, Precision, Interval } from 'chronos-ts';
 
 // Create a period for the year 2023
@@ -70,8 +82,8 @@ console.log(overlap?.getStartDate(), overlap?.getEndDate()); // 2023-04-01, 2023
 // Subtract a period
 const remainingPeriods = year2023.subtract(q2_2023);
 console.log(remainingPeriods.length); // 2
-console.log(remainingPeriods[0].getStartDate(), remainingPeriods[0].getEndDate()); // 2023-01-01, 2023-03-31
-console.log(remainingPeriods[1].getStartDate(), remainingPeriods[1].getEndDate()); // 2023-07-01, 2023-12-31
+console.log(remainingPeriods[0].getStartDate(), remainingPeriods[0].getEndDate()); // 2023-01-01, 2023-04-01
+console.log(remainingPeriods[1].getStartDate(), remainingPeriods[1].getEndDate()); // 2023-06-30, 2023-12-31
 
 // Create a period with an interval
 const weeklyPeriod = new Period('2023-01-01', '2023-12-31', Precision.WEEK, Interval.weeks(1));
@@ -80,7 +92,7 @@ const weeklyPeriod = new Period('2023-01-01', '2023-12-31', Precision.WEEK, Inte
 const weeklyDates = weeklyPeriod.getDatesInInterval();
 console.log(weeklyDates?.length); // 53 (number of weeks in 2023)
 
-// Renew a period
+// Renew a period - FIXED: Use getter methods
 const nextYear = year2023.renew();
 console.log(nextYear.getStartDate(), nextYear.getEndDate()); // 2024-01-01, 2024-12-31
 
@@ -90,7 +102,7 @@ const customPeriod = new Period('2023-01-01', '2023-12-31')
   .setInterval(Interval.months(3));
 
 console.log(customPeriod.getDatesInInterval()?.length); // 5 (Jan, Apr, Jul, Oct, Jan)
-````
+```
 
 ### Working with Intervals
 ``` typescript
@@ -218,7 +230,7 @@ The package includes various utility functions for working with dates:
 - `range(start: number, end: number, step: number = 1): number[]` - Returns an array of numbers within the specified range.
 
 ### Real-world Scenarios
-**1. Event Planning and Management**
+#### **1. Event Planning and Management**
 The `Period` class can be used to represent events, while the `Interval` class can help manage recurring events.
 ``` typescript
 import { Period, Interval, Precision } from 'chronos-ts';
@@ -240,7 +252,7 @@ const conflictingMeetings = meetingDates?.filter(date => conference.contains(dat
 console.log(`There are ${conflictingMeetings.length} conflicting meetings during the conference.`);
 ```
 
-**2. Financial  Reporting Periods**
+#### **2. Financial  Reporting Periods**
 Use the `Period` class to represent financial quarters and calculate year-to-date periods.
 ``` typescript
 import { Period, Precision } from 'chronos-ts';
@@ -250,9 +262,9 @@ const q2_2023 = new Period('2023-04-01', '2023-06-30', Precision.DAY);
 const q3_2023 = new Period('2023-07-01', '2023-09-30', Precision.DAY);
 const q4_2023 = new Period('2023-10-01', '2023-12-31', Precision.DAY);
 
-// Calculate Year-to-Date period
+// Calculate Year-to-Date period - FIXED: Use getter method
 const ytd = (currentQuarter: Period): Period => {
-  return new Period('2023-01-01', currentQuarter.endDate, Precision.DAY);
+  return new Period('2023-01-01', currentQuarter.getEndDate(), Precision.DAY);
 };
 
 const q3YTD = ytd(q3_2023);
@@ -269,7 +281,7 @@ const q3Revenue = 1200000;
 console.log(`Q3 QoQ Growth: ${calculateQoQGrowth(q3Revenue, q2Revenue)}`);
 ```
 
-**3. Employee Leave Management**
+#### **3. Employee Leave Management**
 Use the `Period` class to manage employee leave requests and calculate leave balances.
 ``` typescript
 import { Period, Precision } from 'chronos-ts';
@@ -298,7 +310,7 @@ console.log(`Next year's leave balance: ${nextYearLeaveBalance ? nextYearLeaveBa
 
 ```
 
-**4.  Project Timeline Management**
+#### **4.  Project Timeline Management**
 Use the Period class to manage project timelines and track overlapping tasks.
 ``` typescript
 import { Period, Precision } from 'chronos-ts';
@@ -339,7 +351,7 @@ const currentProgress = calculateProgress(new Date('2023-06-15'));
 console.log(`Project progress: ${currentProgress.toFixed(2)}%`);
 ```
 
-**5. Subscription Billing Cycle Management**
+#### **5. Subscription Billing Cycle Management**
 Use the Period class to manage subscription periods and calculate renewal dates.
 ``` typescript
 import { Period, Precision, addToDate } from 'chronos-ts';
@@ -384,7 +396,7 @@ const renewedPeriod = monthlySubscription.getCurrentPeriod();
 console.log(`Monthly subscription renewed. New period: ${renewedPeriod.getStartDate().toDateString()} - ${renewedPeriod.getEndDate().toDateString()}`);
 ```
 
-**6. Employee Shift Management**
+#### **6. Employee Shift Management**
 
 Use the `Period` and `Interval` classes to manage employee shifts and calculate overtime.
 
@@ -446,7 +458,7 @@ const hasConflict = (shifts: Shift[]): boolean => {
 console.log(`Shifts have conflicts: ${hasConflict(employeeShifts)}`);
 ```
 
-**7. Travel Itinerary Planning**
+#### **7. Travel Itinerary Planning**
 Use the `Period` class to manage travel itineraries and check for scheduling conflicts.
 ``` typescript
 import { Period, Precision, addToDate } from 'chronos-ts';
@@ -510,4 +522,4 @@ Contributions, issues and feature requests are welcome. After cloning & setting 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgements 🙏
-- [spatie/period]((https://github.com/spatie/period)
+- [spatie/period](https://github.com/spatie/period)
