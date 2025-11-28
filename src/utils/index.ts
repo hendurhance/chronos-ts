@@ -18,6 +18,16 @@ import {
   MILLISECONDS_PER_YEAR,
 } from '../types';
 
+export {
+  MILLISECONDS_PER_SECOND,
+  MILLISECONDS_PER_MINUTE,
+  MILLISECONDS_PER_HOUR,
+  MILLISECONDS_PER_DAY,
+  MILLISECONDS_PER_WEEK,
+  MILLISECONDS_PER_MONTH,
+  MILLISECONDS_PER_YEAR,
+};
+
 // ============================================================================
 // Type Guards
 // ============================================================================

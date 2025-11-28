@@ -857,7 +857,7 @@ export class ChronosPeriod implements Iterable<Chronos> {
       results.push(
         new ChronosPeriod(
           this._start,
-          other._start.subtract({ days: 1 }),
+          other._start.subtract(this._interval.toDuration()),
           this._interval,
         ),
       );
@@ -867,7 +867,11 @@ export class ChronosPeriod implements Iterable<Chronos> {
     const otherEnd = other._end ?? other.last();
     if (otherEnd && thisEnd && thisEnd.isAfter(otherEnd)) {
       results.push(
-        new ChronosPeriod(otherEnd.add({ days: 1 }), thisEnd, this._interval),
+        new ChronosPeriod(
+          otherEnd.add(this._interval.toDuration()),
+          thisEnd,
+          this._interval,
+        ),
       );
     }
 
@@ -886,8 +890,8 @@ export class ChronosPeriod implements Iterable<Chronos> {
     }
 
     return (
-      thisEnd.add({ days: 1 }).isSame(other._start, 'day') ||
-      otherEnd.add({ days: 1 }).isSame(this._start, 'day')
+      thisEnd.add(this._interval.toDuration()).isSame(other._start) ||
+      otherEnd.add(other._interval.toDuration()).isSame(this._start)
     );
   }
 

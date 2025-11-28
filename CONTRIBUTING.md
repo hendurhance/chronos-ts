@@ -70,7 +70,7 @@ chronos-ts/
 │   │   ├── chronos.ts        # Main Chronos class
 │   │   ├── interval.ts       # ChronosInterval class
 │   │   ├── period.ts         # ChronosPeriod class
-│   │   ├── periodCollection.ts # ChronosPeriodCollection class
+│   │   ├── period-collection.ts # ChronosPeriodCollection class
 │   │   ├── timezone.ts       # ChronosTimezone class
 │   │   └── index.ts          # Core barrel export
 │   ├── locales/              # Locale configurations
@@ -84,7 +84,7 @@ chronos-ts/
 │   ├── chronos.test.ts
 │   ├── interval.test.ts
 │   ├── period.test.ts
-│   ├── periodCollection.test.ts
+│   ├── period-collection.test.ts
 │   └── timezone.test.ts
 ├── .github/
 │   └── workflows/            # GitHub Actions

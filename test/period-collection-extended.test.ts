@@ -1,4 +1,4 @@
-import { ChronosPeriodCollection } from '../src/core/periodCollection';
+import { ChronosPeriodCollection } from '../src/core/period-collection';
 import { ChronosPeriod } from '../src/core/period';
 
 describe('ChronosPeriodCollection Extended Tests', () => {

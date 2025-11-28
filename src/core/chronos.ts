@@ -5,42 +5,43 @@
 
 import {
   DateInput,
-  AnyTimeUnit,
-  Duration,
-  ChronosLike,
   ChronosConfig,
+  Duration,
+  AnyTimeUnit,
   DayOfWeek,
-  LocaleConfig,
-  HumanDiffOptions,
-  DiffResult,
-  DateTimeComponents,
   DateTimeSetter,
+  DiffResult,
+  HumanDiffOptions,
+  ChronosLike,
+  LocaleConfig,
+  DateTimeComponents,
   ChronosJSON,
+} from '../types';
+import { ChronosTimezone } from './timezone';
+import {
+  isDate,
+  isValidDate,
+  cloneDate,
+  isLeapYear,
+  getDaysInMonth,
+  getDaysInYear,
+  getISOWeek,
+  getISOWeekYear,
+  getDayOfYear,
+  getQuarter,
+  addUnits,
+  diffInUnits,
+  startOf,
+  endOf,
+  isChronosLike,
+  isDuration,
+  normalizeUnit,
+  padStart,
+  ordinalSuffix,
   MILLISECONDS_PER_SECOND,
   MILLISECONDS_PER_MINUTE,
   MILLISECONDS_PER_HOUR,
   MILLISECONDS_PER_DAY,
-} from '../types';
-import {
-  isDate,
-  isChronosLike,
-  isDuration,
-  isLeapYear,
-  normalizeUnit,
-  getDaysInMonth,
-  getDaysInYear,
-  getDayOfYear,
-  getISOWeek,
-  getISOWeekYear,
-  getQuarter,
-  startOf,
-  endOf,
-  addUnits,
-  diffInUnits,
-  cloneDate,
-  isValidDate,
-  padStart,
-  ordinalSuffix,
 } from '../utils';
 import { getLocale } from '../locales';
 
@@ -155,6 +156,38 @@ export class Chronos implements ChronosLike {
     throw new Error(`Unable to parse date: ${input}`);
   }
 
+  /**
+   * Helper to create a date from components in a specific timezone
+   */
+  private static dateFromComponents(
+    components: DateTimeComponents,
+    timezone: string,
+  ): Date {
+    const utcTime = Date.UTC(
+      components.year ?? 1970,
+      (components.month ?? 1) - 1,
+      components.day ?? 1,
+      components.hour ?? 0,
+      components.minute ?? 0,
+      components.second ?? 0,
+      components.millisecond ?? 0,
+    );
+
+    const tz = new ChronosTimezone(timezone);
+    let offset = tz.getOffsetMinutes(new Date(utcTime));
+    let date = new Date(utcTime - offset * 60000);
+
+    // Refine offset (handle DST transitions)
+    for (let i = 0; i < 3; i++) {
+      const newOffset = tz.getOffsetMinutes(date);
+      if (newOffset === offset) break;
+      offset = newOffset;
+      date = new Date(utcTime - offset * 60000);
+    }
+
+    return date;
+  }
+
   // ============================================================================
   // Static Factory Methods
   // ============================================================================
@@ -225,6 +258,22 @@ export class Chronos implements ChronosLike {
     millisecond: number = 0,
     timezone?: string,
   ): Chronos {
+    if (timezone) {
+      const date = Chronos.dateFromComponents(
+        {
+          year,
+          month,
+          day,
+          hour,
+          minute,
+          second,
+          millisecond,
+        },
+        timezone,
+      );
+      return new Chronos(date, timezone);
+    }
+
     const date = new Date(
       year,
       month - 1,
@@ -259,6 +308,11 @@ export class Chronos implements ChronosLike {
     components: DateTimeComponents,
     timezone?: string,
   ): Chronos {
+    if (timezone) {
+      const date = Chronos.dateFromComponents(components, timezone);
+      return new Chronos(date, timezone);
+    }
+
     const now = new Date();
     const date = new Date(
       components.year ?? now.getFullYear(),
@@ -386,41 +440,62 @@ export class Chronos implements ChronosLike {
 
   /** Get the year */
   get year(): number {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).year;
+    }
     return this._date.getFullYear();
   }
 
   /** Get the month (1-12) */
   get month(): number {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).month;
+    }
     return this._date.getMonth() + 1;
   }
 
   /** Get the day of month (1-31) */
   get date(): number {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).day;
+    }
     return this._date.getDate();
   }
 
   /** Alias for date */
   get day(): number {
-    return this._date.getDate();
+    return this.date;
   }
 
   /** Get the day of week (0-6, Sunday = 0) */
   get dayOfWeek(): DayOfWeek {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).dayOfWeek as DayOfWeek;
+    }
     return this._date.getDay() as DayOfWeek;
   }
 
   /** Get the hour (0-23) */
   get hour(): number {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).hour;
+    }
     return this._date.getHours();
   }
 
   /** Get the minute (0-59) */
   get minute(): number {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).minute;
+    }
     return this._date.getMinutes();
   }
 
   /** Get the second (0-59) */
   get second(): number {
+    if (this._timezone) {
+      return new ChronosTimezone(this._timezone).getComponents(this._date).second;
+    }
     return this._date.getSeconds();
   }
 
@@ -506,6 +581,24 @@ export class Chronos implements ChronosLike {
    * Month is 1-12 (like Carbon PHP)
    */
   set(values: DateTimeSetter): Chronos {
+    if (this._timezone) {
+      const tz = new ChronosTimezone(this._timezone);
+      const current = tz.getComponents(this._date);
+
+      const components: DateTimeComponents = {
+        year: values.year ?? current.year,
+        month: values.month ?? current.month,
+        day: values.date ?? values.day ?? current.day,
+        hour: values.hour ?? current.hour,
+        minute: values.minute ?? current.minute,
+        second: values.second ?? current.second,
+        millisecond: values.millisecond ?? this._date.getMilliseconds(),
+      };
+
+      const date = Chronos.dateFromComponents(components, this._timezone);
+      return new Chronos(date, this._timezone);
+    }
+
     const date = cloneDate(this._date);
 
     if (values.year !== undefined) date.setFullYear(values.year);
@@ -1181,6 +1274,13 @@ export class Chronos implements ChronosLike {
   // ============================================================================
   // Conversion Methods
   // ============================================================================
+
+  /**
+   * Convert to a specific timezone
+   */
+  toTimezone(timezone: string): Chronos {
+    return new Chronos(this._date, timezone);
+  }
 
   /** Convert to native Date object */
   toDate(): Date {

@@ -397,16 +397,18 @@ export class ChronosPeriodCollection implements Iterable<ChronosPeriod> {
     const gaps: ChronosPeriod[] = [];
 
     for (let i = 0; i < merged.length - 1; i++) {
-      const end = merged[i].end ?? merged[i].last();
-      const startNext = merged[i + 1].start;
+      const current = merged[i];
+      const next = merged[i + 1];
+      const end = current.end ?? current.last();
+      const startNext = next.start;
 
       if (end && startNext) {
-        const gapStart = end.add({ days: 1 });
-        const gapEnd = startNext.subtract({ days: 1 });
+        const gapStart = end.add(current.interval.toDuration());
+        const gapEnd = startNext.subtract(next.interval.toDuration());
 
         // Only create gap if there's actual space between periods
         if (gapStart.isSameOrBefore(gapEnd)) {
-          gaps.push(ChronosPeriod.create(gapStart, gapEnd));
+          gaps.push(ChronosPeriod.create(gapStart, gapEnd, current.interval));
         }
       }
     }
@@ -475,10 +477,10 @@ export class ChronosPeriodCollection implements Iterable<ChronosPeriod> {
     if (!aEnd || !bEnd) return false;
 
     // a ends exactly where b starts
-    if (aEnd.add({ days: 1 }).isSame(b.start, 'day')) return true;
+    if (aEnd.add(a.interval.toDuration()).isSame(b.start)) return true;
 
     // b ends exactly where a starts
-    if (bEnd.add({ days: 1 }).isSame(a.start, 'day')) return true;
+    if (bEnd.add(b.interval.toDuration()).isSame(a.start)) return true;
 
     return false;
   }
