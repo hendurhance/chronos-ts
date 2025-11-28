@@ -1,12 +1,21 @@
 {
   "name": "chronos-ts",
-  "version": "1.1.0",
-  "description": "A comprehensive TypeScript package for handling time periods, intervals, and date-related operations.",
+  "version": "2.0.0",
+  "description": "A comprehensive TypeScript library for date and time manipulation, inspired by Carbon PHP. Features immutable API, intervals, periods, timezones, and i18n support.",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "format": "prettier --write 'src/**/*.{ts,js,json,md}'",
     "lint": "eslint 'src/**/*.{ts,js}'",
     "prepare": "npm run build",
@@ -33,7 +42,14 @@
     "time-period",
     "date-interval",
     "time-arithmetic",
-    "date-arithmetic"
+    "date-arithmetic",
+    "carbon",
+    "moment",
+    "dayjs",
+    "timezone",
+    "i18n",
+    "localization",
+    "immutable"
   ],
   "files": [
     "dist/**",

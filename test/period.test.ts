@@ -1,532 +1,751 @@
-import { Interval, Period, Precision } from '../src'
+import { ChronosPeriod } from '../src/core/period';
+import { Chronos } from '../src/core/chronos';
 
-describe('Period Class', () => {
-  let period: Period
-  let otherPeriod: Period
+describe('ChronosPeriod', () => {
+  // ============================================================================
+  // Factory Methods
+  // ============================================================================
 
-  beforeEach(() => {
-    period = new Period('2023-01-01', '2023-01-10', Precision.DAY)
-    otherPeriod = new Period('2023-01-05', '2023-01-15', Precision.DAY)
-  })
+  describe('Factory Methods', () => {
+    test('create() with start and end', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31');
 
-  describe('constructor', () => {
-    it('should initialize with correct dates and precision', () => {
-      expect(period.getStartDate()).toEqual(new Date('2023-01-01'))
-      expect(period.getEndDate()).toEqual(new Date('2023-01-10'))
-      expect(period['precision']).toBe(Precision.DAY)
-    })
+      expect(period.start.format('YYYY-MM-DD')).toBe('2024-01-01');
+      expect(period.end?.format('YYYY-MM-DD')).toBe('2024-01-31');
+    });
 
-    it('should throw error when start date is after end date', () => {
-      expect(() => {
-        new Period('2023-01-10', '2023-01-01', Precision.DAY)
-      }).toThrow('Start date must be before or equal to end date')
-    })
+    test('create() with custom interval', () => {
+      const period = ChronosPeriod.create(
+        '2024-01-01',
+        '2024-01-31',
+        { days: 7 }
+      );
 
-    it('should throw error for invalid date strings', () => {
-      expect(() => {
-        new Period('invalid-date', '2023-01-10', Precision.DAY)
-      }).toThrow('Invalid date: invalid-date')
-    })
-  })
+      expect(period.interval.days).toBe(7);
+    });
 
-  describe('contains', () => {
-    it('should return true for a date within the period', () => {
-      expect(period.contains('2023-01-05')).toBe(true)
-    })
+    test('days() creates daily period', () => {
+      const period = ChronosPeriod.days('2024-01-01', 7);
+      const dates = period.toArray();
 
-    it('should return false for a date outside the period', () => {
-      expect(period.contains('2023-01-15')).toBe(false)
-    })
+      expect(dates.length).toBe(7);
+    });
 
-    it('should throw error for invalid date', () => {
-      expect(() => {
-        period.contains('invalid-date')
-      }).toThrow('Invalid date: invalid-date')
-    })
-  })
+    test('weeks() creates weekly period', () => {
+      const period = ChronosPeriod.weeks('2024-01-01', 4);
 
-  describe('overlapsWith', () => {
-    it('should return true when periods overlap', () => {
-      expect(period.overlapsWith(otherPeriod)).toBe(true)
-    })
+      expect(period.interval.weeks).toBe(1);
+    });
 
-    it('should return false when periods do not overlap', () => {
-      const nonOverlappingPeriod = new Period(
-        '2023-01-11',
-        '2023-01-20',
-        Precision.DAY
-      )
-      expect(period.overlapsWith(nonOverlappingPeriod)).toBe(false)
-    })
-  })
+    test('months() creates monthly period', () => {
+      const period = ChronosPeriod.months('2024-01-01', 3);
 
-  describe('isAdjacentTo', () => {
-    it('should return true when periods are adjacent with day precision', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:59:59.999Z',
-        Precision.DAY
-      )
-      const adjacentPeriod = new Period(
-        '2023-01-11T00:00:00Z',
-        '2023-01-20T23:59:59.999Z',
-        Precision.DAY
-      )
-      expect(period1.isAdjacentTo(adjacentPeriod)).toBe(true)
-    })
+      expect(period.interval.months).toBe(1);
+    });
 
-    it('should return true when periods are adjacent with hour precision', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:00:00Z',
-        Precision.HOUR
-      )
-      const adjacentPeriod = new Period(
-        '2023-01-11T00:00:00Z',
-        '2023-01-20T23:00:00Z',
-        Precision.HOUR
-      )
-      expect(period1.isAdjacentTo(adjacentPeriod)).toBe(true)
-    })
+    test('currentMonth() creates period for current month', () => {
+      const period = ChronosPeriod.currentMonth();
+      const now = Chronos.now();
 
-    it('should return true when periods are adjacent with minute precision', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-01T00:59:00Z',
-        Precision.MINUTE
-      )
-      const adjacentPeriod = new Period(
-        '2023-01-01T01:00:00Z',
-        '2023-01-01T01:59:00Z',
-        Precision.MINUTE
-      )
-      expect(period1.isAdjacentTo(adjacentPeriod)).toBe(true)
-    })
+      expect(period.start.month).toBe(now.month);
+    });
 
-    it('should return true when periods are adjacent with different precisions', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:59:59.999Z',
-        Precision.DAY
-      )
-      const adjacentPeriod = new Period(
-        '2023-01-11T00:00:00Z',
-        '2023-01-20T23:59:59.999Z',
-        Precision.HOUR
-      )
-      expect(period1.isAdjacentTo(adjacentPeriod)).toBe(true)
-    })
+    test('currentWeek() creates period for current week', () => {
+      const period = ChronosPeriod.currentWeek();
 
-    it('should return false when periods are not adjacent with day precision', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:59:59.999Z',
-        Precision.DAY
-      )
-      const nonAdjacentPeriod = new Period(
-        '2023-01-12T00:00:00Z',
-        '2023-01-20T23:59:59.999Z',
-        Precision.DAY
-      )
-      expect(period1.isAdjacentTo(nonAdjacentPeriod)).toBe(false)
-    })
+      expect(period.start.dayOfWeek).toBe(0); // Sunday
+    });
 
-    it('should return false when periods are not adjacent with hour precision', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:00:00Z',
-        Precision.HOUR
-      )
-      const nonAdjacentPeriod = new Period(
-        '2023-01-11T01:00:00Z',
-        '2023-01-20T23:00:00Z',
-        Precision.HOUR
-      )
-      expect(period1.isAdjacentTo(nonAdjacentPeriod)).toBe(false)
-    })
+    test('month() creates period for specific month', () => {
+      const period = ChronosPeriod.month(2024, 2);
 
-    it('should return false when periods are not adjacent with minute precision', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-01T00:58:00Z',
-        Precision.MINUTE
-      )
-      const nonAdjacentPeriod = new Period(
-        '2023-01-01T01:00:00Z',
-        '2023-01-01T01:59:00Z',
-        Precision.MINUTE
-      )
-      expect(period1.isAdjacentTo(nonAdjacentPeriod)).toBe(false)
-    })
+      expect(period.start.format('YYYY-MM-DD')).toBe('2024-02-01');
+      expect(period.end?.day).toBe(29); // Leap year
+    });
 
-    it('should return false when periods overlap', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:59:59.999Z',
-        Precision.DAY
-      )
-      const overlappingPeriod = new Period(
-        '2023-01-10T00:00:00Z',
-        '2023-01-20T23:59:59.999Z',
-        Precision.DAY
-      )
-      expect(period1.isAdjacentTo(overlappingPeriod)).toBe(false)
-    })
+    test('quarter() creates period for specific quarter', () => {
+      const period = ChronosPeriod.quarter(2024, 2);
 
-    it('should return true when periods are adjacent in reverse order', () => {
-      const period1 = new Period(
-        '2023-01-11T00:00:00Z',
-        '2023-01-20T23:59:59.999Z',
-        Precision.DAY
-      )
-      const adjacentPeriod = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:59:59.999Z',
-        Precision.DAY
-      )
-      expect(period1.isAdjacentTo(adjacentPeriod)).toBe(true)
-    })
-  })
+      expect(period.start.month).toBe(4); // April
+    });
+  });
 
-  describe('getDatesInInterval', () => {
-    it('should return dates at specified intervals', () => {
-      const interval = Interval.days(2)
-      period.setInterval(interval)
-      const dates = period.getDatesInInterval()
-      expect(dates?.length).toBe(5)
-      expect(dates).toEqual([
-        new Date('2023-01-01'),
-        new Date('2023-01-03'),
-        new Date('2023-01-05'),
-        new Date('2023-01-07'),
-        new Date('2023-01-09')
-      ])
-    })
+  // ============================================================================
+  // Iteration
+  // ============================================================================
 
-    it('should return null when interval is not set', () => {
-      expect(period.getDatesInInterval()).toBeNull()
-    })
-  })
+  describe('Iteration', () => {
+    test('iterates over dates', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
+      const dates = period.toArray();
 
-  describe('length', () => {
-    it('should return the correct length of the period', () => {
-      expect(period.length()).toBe(9) // Difference in days
-    })
-  })
+      expect(dates.length).toBe(5);
+      expect(dates[0].format('YYYY-MM-DD')).toBe('2024-01-01');
+      expect(dates[4].format('YYYY-MM-DD')).toBe('2024-01-05');
+    });
 
-  describe('overlap', () => {
-    it('should return the overlapping period', () => {
-      const overlapPeriod = period.overlap(otherPeriod)
-      expect(overlapPeriod?.getStartDate()).toEqual(new Date('2023-01-05'))
-      expect(overlapPeriod?.getEndDate()).toEqual(new Date('2023-01-10'))
-    })
+    test('respects custom interval', () => {
+      const period = ChronosPeriod.create(
+        '2024-01-01',
+        '2024-01-15',
+        { days: 3 }
+      );
+      const dates = period.toArray();
 
-    it('should return null when there is no overlap', () => {
-      const nonOverlappingPeriod = new Period(
-        '2023-01-11',
-        '2023-01-20',
-        Precision.DAY
-      )
-      expect(period.overlap(nonOverlappingPeriod)).toBeNull()
-    })
-  })
+      expect(dates[0].format('YYYY-MM-DD')).toBe('2024-01-01');
+      expect(dates[1].format('YYYY-MM-DD')).toBe('2024-01-04');
+      expect(dates[2].format('YYYY-MM-DD')).toBe('2024-01-07');
+    });
 
-  describe('subtract', () => {
-    it('should return remaining periods after subtraction', () => {
-      // period: 2023-01-01 to 2023-01-10
-      // otherPeriod: 2023-01-05 to 2023-01-15
-      // Expected result: 2023-01-01 to 2023-01-05 (fixed boundary)
-      const result = period.subtract(otherPeriod)
-      expect(result.length).toBe(1)
-      expect(result[0].getStartDate()).toEqual(new Date('2023-01-01T00:00:00.000Z'))
-      expect(result[0].getEndDate()).toEqual(new Date('2023-01-05T00:00:00.000Z'))
-    })
+    test('supports for...of iteration', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-03');
+      const dates: Chronos[] = [];
 
-    it('should handle subtraction with different precisions', () => {
-      const hourPeriod = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T00:00:00Z',
-        Precision.HOUR
-      )
-      const otherHourPeriod = new Period(
-        '2023-01-05T12:00:00Z',
-        '2023-01-15T00:00:00Z',
-        Precision.HOUR
-      )
-      const result = hourPeriod.subtract(otherHourPeriod)
-      expect(result.length).toBe(1)
-      expect(result[0].getStartDate()).toEqual(new Date('2023-01-01T00:00:00.000Z'))
-      expect(result[0].getEndDate()).toEqual(new Date('2023-01-05T12:00:00.000Z'))
-    })
+      for (const date of period) {
+        dates.push(date);
+      }
 
-    it('should return the original period when there is no overlap', () => {
-      const nonOverlappingPeriod = new Period(
-        '2023-01-11',
-        '2023-01-20',
-        Precision.DAY
-      )
-      const result = period.subtract(nonOverlappingPeriod)
-      expect(result.length).toBe(1)
-      expect(result[0]).toEqual(period)
-    })
+      expect(dates.length).toBe(3);
+    });
 
-    it('should handle complete overlap (period completely subtracted)', () => {
-      const largerPeriod = new Period(
-        '2022-12-01',
-        '2023-02-01',
-        Precision.DAY
-      )
-      const result = period.subtract(largerPeriod)
-      expect(result.length).toBe(0)
-    })
+    test('count() returns number of dates', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-10');
 
-    it('should handle subtraction leaving two periods', () => {
-      const middlePeriod = new Period(
-        '2023-01-04',
-        '2023-01-07',
-        Precision.DAY
-      )
-      const result = period.subtract(middlePeriod)
-      expect(result.length).toBe(2)
-      expect(result[0].getStartDate()).toEqual(new Date('2023-01-01'))
-      expect(result[0].getEndDate()).toEqual(new Date('2023-01-04'))
-      expect(result[1].getStartDate()).toEqual(new Date('2023-01-07'))
-      expect(result[1].getEndDate()).toEqual(new Date('2023-01-10'))
-    })
-  })
+      expect(period.count()).toBe(10);
+    });
 
-  describe('gap', () => {
-    it('should return the gap between two periods', () => {
-      // period: 2023-01-01 to 2023-01-10
-      // nonOverlappingPeriod: 2023-01-15 to 2023-01-20
-      // Expected gap: 2023-01-10 to 2023-01-15 (fixed boundary calculation)
-      const nonOverlappingPeriod = new Period(
-        '2023-01-15',
-        '2023-01-20',
-        Precision.DAY
-      )
-      const gapPeriod = period.gap(nonOverlappingPeriod)
-      expect(gapPeriod?.getStartDate()).toEqual(new Date('2023-01-10'))
-      expect(gapPeriod?.getEndDate()).toEqual(new Date('2023-01-15'))
-    })
+    test('first() returns first date', () => {
+      const period = ChronosPeriod.create('2024-01-15', '2024-01-20');
 
-    it('should return null when periods overlap or are adjacent', () => {
-      expect(period.gap(otherPeriod)).toBeNull()
-      
-      // Test truly adjacent periods (no gap between them)
-      const adjacentPeriod = new Period(
-        '2023-01-11',
-        '2023-01-15',
-        Precision.DAY
-      )
-      expect(period.gap(adjacentPeriod)).toBeNull()
-    })
+      expect(period.first()?.format('YYYY-MM-DD')).toBe('2024-01-15');
+    });
 
-    it('should handle gaps in reverse order', () => {
-      const earlierPeriod = new Period(
-        '2022-12-15',
-        '2022-12-20',
-        Precision.DAY
-      )
-      const gapPeriod = period.gap(earlierPeriod)
-      expect(gapPeriod?.getStartDate()).toEqual(new Date('2022-12-20'))
-      expect(gapPeriod?.getEndDate()).toEqual(new Date('2023-01-01'))
-    })
-  })
+    test('last() returns last date', () => {
+      const period = ChronosPeriod.create('2024-01-15', '2024-01-20');
 
-  describe('symmetricDifference', () => {
-    it('should return periods that are in either period but not both', () => {
-      const period1 = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-10T23:59:59.999Z',
-        Precision.DAY
-      )
-      const period2 = new Period(
-        '2023-01-05T00:00:00Z',
-        '2023-01-15T23:59:59.999Z',
-        Precision.DAY
-      )
-      const result = period1.symmetricDifference(period2)
-      expect(result.length).toBe(2)
-      expect(result[0].getStartDate()).toEqual(new Date('2023-01-01T00:00:00.000Z'))
-      expect(result[0].getEndDate()).toEqual(new Date('2023-01-05T00:00:00.000Z'))
-      expect(result[1].getStartDate()).toEqual(new Date('2023-01-10T23:59:59.999Z'))
-      expect(result[1].getEndDate()).toEqual(new Date('2023-01-15T23:59:59.999Z'))
-    })
+      expect(period.last()?.format('YYYY-MM-DD')).toBe('2024-01-20');
+    });
 
-    it('should return the union when there is no overlap', () => {
-      const nonOverlappingPeriod = new Period(
-        '2023-01-11',
-        '2023-01-20',
-        Precision.DAY
-      )
-      const result = period.symmetricDifference(nonOverlappingPeriod)
-      expect(result.length).toBe(2)
-      expect(result[0]).toEqual(period)
-      expect(result[1]).toEqual(nonOverlappingPeriod)
-    })
-  })
+    test('nth() returns date at index', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-10');
 
-  describe('renew', () => {
-    it('should create a new period immediately after the current one', () => {
-      const renewedPeriod = period.renew()
-      expect(renewedPeriod.getStartDate()).toEqual(new Date('2023-01-11'))
-      expect(renewedPeriod.getEndDate()).toEqual(new Date('2023-01-20'))
-    })
-  })
+      expect(period.nth(0)?.format('YYYY-MM-DD')).toBe('2024-01-01');
+      expect(period.nth(4)?.format('YYYY-MM-DD')).toBe('2024-01-05');
+    });
+  });
 
-  describe('union', () => {
-    it('should merge overlapping periods', () => {
-      const result = period.union(otherPeriod)
-      expect(result.length).toBe(1)
-      expect(result[0].getStartDate()).toEqual(new Date('2023-01-01'))
-      expect(result[0].getEndDate()).toEqual(new Date('2023-01-15'))
-    })
+  // ============================================================================
+  // Filters
+  // ============================================================================
 
-    it('should return both periods when they do not overlap', () => {
-      const nonOverlappingPeriod = new Period(
-        '2023-01-20',
-        '2023-01-25',
-        Precision.DAY
-      )
-      const result = period.union(nonOverlappingPeriod)
-      expect(result.length).toBe(2)
-      expect(result[0]).toEqual(period)
-      expect(result[1]).toEqual(nonOverlappingPeriod)
-    })
-  })
+  describe('Filters', () => {
+    test('filter() applies custom filter', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-10')
+        .filter(date => date.day % 2 === 0);
 
-  describe('Fluent API methods', () => {
-    it('should set start date using setStart', () => {
-      // Changed to a valid date that's before the end date
-      period.setStart('2023-01-02')
-      expect(period.getStartDate()).toEqual(new Date('2023-01-02'))
-    })
+      const dates = period.toArray();
+      dates.forEach(date => {
+        expect(date.day % 2).toBe(0);
+      });
+    });
 
-    it('should set end date using setEnd', () => {
-      period.setEnd('2023-02-10')
-      expect(period.getEndDate()).toEqual(new Date('2023-02-10'))
-    })
+    test('weekdays() filters to weekdays only', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-07').weekdays();
+      const dates = period.toArray();
 
-    it('should set precision using setPrecision', () => {
-      period.setPrecision(Precision.MONTH)
-      expect(period['precision']).toBe(Precision.MONTH)
-    })
+      dates.forEach(date => {
+        expect(date.dayOfWeek).not.toBe(0); // Not Sunday
+        expect(date.dayOfWeek).not.toBe(6); // Not Saturday
+      });
+    });
 
-    it('should set interval using setInterval', () => {
-      const interval = Interval.days(1)
-      period.setInterval(interval)
-      expect(period['interval']).toEqual(interval)
-    })
+    test('weekends() filters to weekends only', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-14').weekends();
+      const dates = period.toArray();
 
-    it('should throw error when setting start date after end date', () => {
-      expect(() => {
-        period.setStart('2023-02-01')
-      }).toThrow('Start date must be before or equal to end date')
-    })
+      dates.forEach(date => {
+        expect([0, 6]).toContain(date.dayOfWeek);
+      });
+    });
 
-    it('should throw error when setting end date before start date', () => {
-      expect(() => {
-        period.setEnd('2022-12-01')
-      }).toThrow('End date must be after or equal to start date')
-    })
+    test('onlyDays() filters specific days', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31')
+        .onlyDays(1, 3, 5); // Mon, Wed, Fri
 
-    it('should throw error for invalid date in setStart', () => {
-      expect(() => {
-        period.setStart('invalid-date')
-      }).toThrow('Invalid date: invalid-date')
-    })
+      const dates = period.toArray();
+      dates.forEach(date => {
+        expect([1, 3, 5]).toContain(date.dayOfWeek);
+      });
+    });
 
-    it('should throw error for invalid date in setEnd', () => {
-      expect(() => {
-        period.setEnd('invalid-date')
-      }).toThrow('Invalid date: invalid-date')
-    })
-  })
+    test('exceptDays() excludes specific days', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31')
+        .exceptDays(0, 6); // Exclude Sun and Sat
 
-  describe('interval calculations', () => {
-    const start = new Date('2023-01-01T00:00:00Z')
-    const end = new Date('2024-03-15T12:30:00Z')
-    const period = new Period(start, end, Precision.MINUTE)
+      const dates = period.toArray();
+      dates.forEach(date => {
+        expect(date.dayOfWeek).not.toBe(0);
+        expect(date.dayOfWeek).not.toBe(6);
+      });
+    });
 
-    test('getMinutesInInterval', () => {
-      expect(period.getMinutesInInterval()).toBe(632910)
-    })
+    test('clearFilters() removes all filters', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-07')
+        .weekdays()
+        .clearFilters();
 
-    test('getHoursInInterval', () => {
-      expect(period.getHoursInInterval()).toBe(10548)
-    })
+      expect(period.count()).toBe(7);
+    });
+  });
 
-    test('getDaysInInterval', () => {
-      expect(period.getDaysInInterval()).toBe(439)
-    })
+  // ============================================================================
+  // Boundaries
+  // ============================================================================
 
-    test('getWeeksInInterval', () => {
-      expect(period.getWeeksInInterval()).toBe(62)
-    })
+  describe('Boundaries', () => {
+    test('excludeStart() excludes start date', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05')
+        .excludeStart();
 
-    test('getMonthsInInterval', () => {
-      expect(period.getMonthsInInterval()).toBe(14)
-    })
+      const dates = period.toArray();
+      expect(dates[0].format('YYYY-MM-DD')).toBe('2024-01-02');
+    });
 
-    test('getYearsInInterval', () => {
-      expect(period.getYearsInInterval()).toBe(1)
-    })
-  })
+    test('excludeEnd() excludes end date', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05')
+        .excludeEnd();
 
-  describe('edge cases', () => {
-    test('same day', () => {
-      const sameDayPeriod = new Period(
-        '2023-01-01T00:00:00Z',
-        '2023-01-01T23:59:59Z'
-      )
-      expect(sameDayPeriod.getDaysInInterval()).toBe(0)
-      expect(sameDayPeriod.getHoursInInterval()).toBe(23)
-      expect(sameDayPeriod.getMinutesInInterval()).toBe(1439)
-    })
+      const dates = period.toArray();
+      expect(dates[dates.length - 1].format('YYYY-MM-DD')).toBe('2024-01-04');
+    });
 
-    test('leap year', () => {
-      const leapYearPeriod = new Period(
-        '2024-02-28T00:00:00Z',
-        '2024-03-01T00:00:00Z'
-      )
-      expect(leapYearPeriod.getDaysInInterval()).toBe(2)
-    })
+    test('includesStart getter', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
 
-    test('month boundary', () => {
-      const monthBoundaryPeriod = new Period(
-        '2023-01-31T00:00:00Z',
-        '2023-03-01T00:00:00Z'
-      )
-      expect(monthBoundaryPeriod.getMonthsInInterval()).toBe(1)
-      expect(monthBoundaryPeriod.getDaysInInterval()).toBe(29)
-    })
+      expect(period.includesStart).toBe(true);
+      expect(period.excludeStart().includesStart).toBe(false);
+    });
 
-    test('invalid period creation should throw error', () => {
-      // Test that creating a period with start > end throws an error
-      expect(() => {
-        new Period('2023-03-31T00:00:00Z', '2023-03-01T00:00:00Z')
-      }).toThrow('Start date must be before or equal to end date')
-    })
-  })
+    test('includesEnd getter', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
 
-  describe('precision handling', () => {
-    test('day precision', () => {
-      const dayPrecisionPeriod = new Period(
-        '2023-01-01T12:30:00Z',
-        '2023-01-03T08:45:00Z',
-        Precision.DAY
-      )
-      expect(dayPrecisionPeriod.getDaysInInterval()).toBe(1)
-    })
+      expect(period.includesEnd).toBe(true);
+      expect(period.excludeEnd().includesEnd).toBe(false);
+    });
+  });
 
-    test('month precision', () => {
-      const monthPrecisionPeriod = new Period(
-        '2023-01-15T00:00:00Z',
-        '2023-03-15T00:00:00Z',
-        Precision.MONTH
-      )
-      expect(monthPrecisionPeriod.getMonthsInInterval()).toBe(2)
-    })
-  })
-})
+  // ============================================================================
+  // Setters
+  // ============================================================================
+
+  describe('Setters', () => {
+    test('setStart() changes start date', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31')
+        .setStart('2024-01-15');
+
+      expect(period.start.format('YYYY-MM-DD')).toBe('2024-01-15');
+    });
+
+    test('setEnd() changes end date', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-15')
+        .setEnd('2024-01-31');
+
+      expect(period.end?.format('YYYY-MM-DD')).toBe('2024-01-31');
+    });
+
+    test('setInterval() changes interval', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31')
+        .setInterval({ days: 7 });
+
+      expect(period.interval.days).toBe(7);
+    });
+
+    test('every() sets interval by unit', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-03-31')
+        .every(2, 'weeks');
+
+      expect(period.interval.weeks).toBe(2);
+    });
+
+    test('times() sets recurrence count', () => {
+      const period = ChronosPeriod.recur('2024-01-01', { days: 1 })
+        .times(5);
+
+      expect(period.recurrences).toBe(5);
+      expect(period.count()).toBe(5);
+    });
+  });
+
+  // ============================================================================
+  // Range Operations
+  // ============================================================================
+
+  describe('Range Operations', () => {
+    test('contains() checks if date is in period', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31');
+
+      expect(period.contains('2024-01-15')).toBe(true);
+      expect(period.contains('2024-02-15')).toBe(false);
+    });
+
+    test('overlaps() checks period overlap', () => {
+      const period1 = ChronosPeriod.create('2024-01-01', '2024-01-15');
+      const period2 = ChronosPeriod.create('2024-01-10', '2024-01-25');
+      const period3 = ChronosPeriod.create('2024-02-01', '2024-02-15');
+
+      expect(period1.overlaps(period2)).toBe(true);
+      expect(period1.overlaps(period3)).toBe(false);
+    });
+
+    test('intersect() returns overlapping period', () => {
+      const period1 = ChronosPeriod.create('2024-01-01', '2024-01-20');
+      const period2 = ChronosPeriod.create('2024-01-10', '2024-01-31');
+      const intersection = period1.intersect(period2);
+
+      expect(intersection?.start.format('YYYY-MM-DD')).toBe('2024-01-10');
+      expect(intersection?.end?.format('YYYY-MM-DD')).toBe('2024-01-20');
+    });
+
+    test('intersect() returns null for non-overlapping', () => {
+      const period1 = ChronosPeriod.create('2024-01-01', '2024-01-15');
+      const period2 = ChronosPeriod.create('2024-02-01', '2024-02-15');
+
+      expect(period1.intersect(period2)).toBeNull();
+    });
+  });
+
+  // ============================================================================
+  // Duration
+  // ============================================================================
+
+  describe('Duration', () => {
+    test('days() returns day count', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-11');
+
+      expect(period.days()).toBe(10);
+    });
+
+    test('weeks() returns week count', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-29');
+
+      expect(period.weeks()).toBe(4);
+    });
+
+    test('monthCount() returns month count', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-04-01');
+
+      expect(period.monthCount()).toBe(3);
+    });
+
+    test('duration() returns ChronosInterval', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-11');
+      const duration = period.duration();
+
+      expect(duration.days).toBe(10);
+    });
+  });
+
+  // ============================================================================
+  // Splitting
+  // ============================================================================
+
+  describe('Splitting', () => {
+    test('split() divides period into chunks', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-30');
+      const chunks = period.split(3);
+
+      expect(chunks.length).toBe(3);
+    });
+
+    test('splitBy() divides by interval', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31');
+      const chunks = period.splitBy({ days: 7 });
+
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(chunks[0].days()).toBeLessThanOrEqual(7);
+    });
+  });
+
+  // ============================================================================
+  // Functional Methods
+  // ============================================================================
+
+  describe('Functional Methods', () => {
+    test('forEach() iterates with callback', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
+      const dates: string[] = [];
+
+      period.forEach((date) => {
+        dates.push(date.format('YYYY-MM-DD'));
+      });
+
+      expect(dates.length).toBe(5);
+    });
+
+    test('map() transforms dates', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-03');
+      const formatted = period.map(date => date.format('DD'));
+
+      expect(formatted).toEqual(['01', '02', '03']);
+    });
+
+    test('reduce() aggregates values', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
+      const sum = period.reduce((acc, date) => acc + date.day, 0);
+
+      expect(sum).toBe(1 + 2 + 3 + 4 + 5);
+    });
+  });
+
+  // ============================================================================
+  // Formatting
+  // ============================================================================
+
+  describe('Formatting', () => {
+    test('toString() returns readable string', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31');
+      const str = period.toString();
+
+      expect(str).toContain('2024-01-01');
+      expect(str).toContain('2024-01-31');
+    });
+
+    test('toISO() returns ISO format', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31');
+      const iso = period.toISO();
+
+      expect(iso).toContain('2024-01-01');
+    });
+
+    test('toJSON() returns JSON object', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-31');
+      const json = period.toJSON();
+
+      expect(json).toHaveProperty('start');
+      expect(json).toHaveProperty('end');
+      expect(json).toHaveProperty('interval');
+    });
+  });
+
+  // ============================================================================
+  // Static Helpers
+  // ============================================================================
+
+  describe('Static Helpers', () => {
+    test('weekdaysBetween() creates weekday-only period', () => {
+      const period = ChronosPeriod.weekdaysBetween('2024-01-01', '2024-01-14');
+      const dates = period.toArray();
+
+      dates.forEach(date => {
+        expect(date.dayOfWeek).not.toBe(0);
+        expect(date.dayOfWeek).not.toBe(6);
+      });
+    });
+
+    test('businessDays() excludes holidays', () => {
+      const holidays = ['2024-01-15'];
+      const period = ChronosPeriod.businessDays('2024-01-01', '2024-01-31', holidays);
+      const dates = period.toArray();
+
+      const hasHoliday = dates.some(d => d.format('YYYY-MM-DD') === '2024-01-15');
+      expect(hasHoliday).toBe(false);
+    });
+  });
+
+  // ============================================================================
+  // Cloning
+  // ============================================================================
+
+  describe('Cloning', () => {
+    test('clone() creates independent copy', () => {
+      const original = ChronosPeriod.create('2024-01-01', '2024-01-31');
+      const clone = original.clone();
+
+      expect(clone.start.format('YYYY-MM-DD')).toBe(original.start.format('YYYY-MM-DD'));
+      expect(clone).not.toBe(original);
+    });
+
+    test('modifications return new instances by default', () => {
+      const original = ChronosPeriod.create('2024-01-01', '2024-01-31');
+      const modified = original.setStart('2024-01-15');
+
+      expect(original.start.format('YYYY-MM-DD')).toBe('2024-01-01');
+      expect(modified.start.format('YYYY-MM-DD')).toBe('2024-01-15');
+    });
+  });
+
+  // ============================================================================
+  // Convenience Aliases (thisWeek, thisMonth, lastWeek, etc.)
+  // ============================================================================
+
+  describe('Convenience Aliases', () => {
+    test('thisWeek() is alias for currentWeek()', () => {
+      const thisWeek = ChronosPeriod.thisWeek();
+      const currentWeek = ChronosPeriod.currentWeek();
+
+      expect(thisWeek.start.format('YYYY-MM-DD')).toBe(currentWeek.start.format('YYYY-MM-DD'));
+      expect(thisWeek.end?.format('YYYY-MM-DD')).toBe(currentWeek.end?.format('YYYY-MM-DD'));
+    });
+
+    test('thisMonth() is alias for currentMonth()', () => {
+      const thisMonth = ChronosPeriod.thisMonth();
+      const currentMonth = ChronosPeriod.currentMonth();
+
+      expect(thisMonth.start.format('YYYY-MM-DD')).toBe(currentMonth.start.format('YYYY-MM-DD'));
+      expect(thisMonth.end?.format('YYYY-MM-DD')).toBe(currentMonth.end?.format('YYYY-MM-DD'));
+    });
+
+    test('thisYear() is alias for currentYear()', () => {
+      const thisYear = ChronosPeriod.thisYear();
+      const currentYear = ChronosPeriod.currentYear();
+
+      expect(thisYear.start.format('YYYY-MM-DD')).toBe(currentYear.start.format('YYYY-MM-DD'));
+      expect(thisYear.end?.format('YYYY-MM-DD')).toBe(currentYear.end?.format('YYYY-MM-DD'));
+    });
+
+    test('thisQuarter() is alias for currentQuarter()', () => {
+      const thisQuarter = ChronosPeriod.thisQuarter();
+      const currentQuarter = ChronosPeriod.currentQuarter();
+
+      expect(thisQuarter.start.format('YYYY-MM-DD')).toBe(currentQuarter.start.format('YYYY-MM-DD'));
+      expect(thisQuarter.end?.format('YYYY-MM-DD')).toBe(currentQuarter.end?.format('YYYY-MM-DD'));
+    });
+
+    test('lastWeek() creates period for previous week', () => {
+      const lastWeek = ChronosPeriod.lastWeek();
+      const now = Chronos.now();
+      const expectedStart = now.subtract({ weeks: 1 }).startOf('week');
+
+      expect(lastWeek.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('lastMonth() creates period for previous month', () => {
+      const lastMonth = ChronosPeriod.lastMonth();
+      const now = Chronos.now();
+      const expectedStart = now.subtract({ months: 1 }).startOf('month');
+
+      expect(lastMonth.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('lastYear() creates period for previous year', () => {
+      const lastYear = ChronosPeriod.lastYear();
+      const now = Chronos.now();
+      const expectedStart = now.subtract({ years: 1 }).startOf('year');
+
+      expect(lastYear.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('lastQuarter() creates period for previous quarter', () => {
+      const lastQuarter = ChronosPeriod.lastQuarter();
+      const now = Chronos.now();
+      const expectedStart = now.subtract({ months: 3 }).startOf('quarter');
+
+      expect(lastQuarter.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('nextWeek() creates period for next week', () => {
+      const nextWeek = ChronosPeriod.nextWeek();
+      const now = Chronos.now();
+      const expectedStart = now.add({ weeks: 1 }).startOf('week');
+
+      expect(nextWeek.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('nextMonth() creates period for next month', () => {
+      const nextMonth = ChronosPeriod.nextMonth();
+      const now = Chronos.now();
+      const expectedStart = now.add({ months: 1 }).startOf('month');
+
+      expect(nextMonth.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('nextYear() creates period for next year', () => {
+      const nextYear = ChronosPeriod.nextYear();
+      const now = Chronos.now();
+      const expectedStart = now.add({ years: 1 }).startOf('year');
+
+      expect(nextYear.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+
+    test('nextQuarter() creates period for next quarter', () => {
+      const nextQuarter = ChronosPeriod.nextQuarter();
+      const now = Chronos.now();
+      const expectedStart = now.add({ months: 3 }).startOf('quarter');
+
+      expect(nextQuarter.start.format('YYYY-MM-DD')).toBe(expectedStart.format('YYYY-MM-DD'));
+    });
+  });
+
+  // ============================================================================
+  // Filter Aliases
+  // ============================================================================
+
+  describe('Filter Aliases', () => {
+    test('filterWeekdays() is alias for weekdays()', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-14');
+      const weekdays = period.weekdays().toArray();
+      const filterWeekdays = period.filterWeekdays().toArray();
+
+      expect(weekdays.length).toBe(filterWeekdays.length);
+      weekdays.forEach((date, i) => {
+        expect(date.format('YYYY-MM-DD')).toBe(filterWeekdays[i].format('YYYY-MM-DD'));
+      });
+    });
+
+    test('filterWeekends() is alias for weekends()', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-14');
+      const weekends = period.weekends().toArray();
+      const filterWeekends = period.filterWeekends().toArray();
+
+      expect(weekends.length).toBe(filterWeekends.length);
+      weekends.forEach((date, i) => {
+        expect(date.format('YYYY-MM-DD')).toBe(filterWeekends[i].format('YYYY-MM-DD'));
+      });
+    });
+  });
+
+  // ============================================================================
+  // SplitBy Convenience Methods
+  // ============================================================================
+
+  describe('SplitBy Convenience Methods', () => {
+    test('splitByDays() splits period by specified days', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-28');
+      const chunks = period.splitByDays(7);
+
+      expect(chunks.length).toBe(4);
+      chunks.forEach(chunk => {
+        expect(chunk.days()).toBeLessThanOrEqual(7);
+      });
+    });
+
+    test('splitByWeeks() splits period by specified weeks', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-02-28');
+      const chunks = period.splitByWeeks(2);
+
+      expect(chunks.length).toBeGreaterThan(0);
+    });
+
+    test('splitByMonths() splits period by specified months', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-06-30');
+      const chunks = period.splitByMonths(1);
+
+      expect(chunks.length).toBe(6);
+    });
+
+    test('splitByYears() splits period by specified years', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2026-12-31');
+      const chunks = period.splitByYears(1);
+
+      expect(chunks.length).toBe(3);
+    });
+
+    test('splitByDays() handles remaining days', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-10');
+      const chunks = period.splitByDays(3);
+
+      expect(chunks.length).toBe(4); // 3+3+3+1
+    });
+  });
+
+  // ============================================================================
+  // Skip Method
+  // ============================================================================
+
+  describe('Skip Method', () => {
+    test('skip() excludes specified dates', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-10');
+      const skipped = period.skip(['2024-01-05', '2024-01-06']);
+      const dates = skipped.toArray();
+
+      const hasJan5 = dates.some(d => d.format('YYYY-MM-DD') === '2024-01-05');
+      const hasJan6 = dates.some(d => d.format('YYYY-MM-DD') === '2024-01-06');
+
+      expect(hasJan5).toBe(false);
+      expect(hasJan6).toBe(false);
+      expect(dates.length).toBe(8); // 10 - 2 = 8
+    });
+
+    test('skip() accepts Chronos instances', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-10');
+      const skipDate = Chronos.create(2024, 1, 5);
+      const skipped = period.skip([skipDate]);
+      const dates = skipped.toArray();
+
+      const hasJan5 = dates.some(d => d.format('YYYY-MM-DD') === '2024-01-05');
+
+      expect(hasJan5).toBe(false);
+    });
+
+    test('skip() with empty array returns all dates', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
+      const skipped = period.skip([]);
+
+      expect(skipped.count()).toBe(5);
+    });
+
+    test('skip() handles dates outside period gracefully', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-05');
+      const skipped = period.skip(['2024-02-01']);
+
+      expect(skipped.count()).toBe(5);
+    });
+
+    test('skip() can be combined with other filters', () => {
+      const period = ChronosPeriod.create('2024-01-01', '2024-01-14')
+        .weekdays()
+        .skip(['2024-01-08']); // Skip Monday Jan 8
+
+      const dates = period.toArray();
+      const hasJan8 = dates.some(d => d.format('YYYY-MM-DD') === '2024-01-08');
+
+      expect(hasJan8).toBe(false);
+      // All remaining dates should be weekdays
+      dates.forEach(date => {
+        expect(date.dayOfWeek).not.toBe(0);
+        expect(date.dayOfWeek).not.toBe(6);
+      });
+    });
+  });
+
+  // ============================================================================
+  // Period Relative Static Methods Edge Cases
+  // ============================================================================
+
+  describe('Period Relative Methods Edge Cases', () => {
+    test('lastWeek period has 7 days', () => {
+      const lastWeek = ChronosPeriod.lastWeek();
+
+      expect(lastWeek.count()).toBe(7);
+    });
+
+    test('lastMonth period covers full month', () => {
+      const lastMonth = ChronosPeriod.lastMonth();
+
+      // First day should be 1
+      expect(lastMonth.start.day).toBe(1);
+    });
+
+    test('lastYear period starts January 1 and ends December 31', () => {
+      const lastYear = ChronosPeriod.lastYear();
+
+      expect(lastYear.start.month).toBe(1);
+      expect(lastYear.start.day).toBe(1);
+      expect(lastYear.end?.month).toBe(12);
+      expect(lastYear.end?.day).toBe(31);
+    });
+
+    test('nextWeek period starts on Sunday', () => {
+      const nextWeek = ChronosPeriod.nextWeek();
+
+      expect(nextWeek.start.dayOfWeek).toBe(0); // Sunday
+    });
+
+    test('nextMonth period starts on 1st', () => {
+      const nextMonth = ChronosPeriod.nextMonth();
+
+      expect(nextMonth.start.day).toBe(1);
+    });
+  });
+});
+
