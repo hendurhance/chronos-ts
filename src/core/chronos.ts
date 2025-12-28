@@ -449,7 +449,8 @@ export class Chronos implements ChronosLike {
   /** Get the month (1-12) */
   get month(): number {
     if (this._timezone) {
-      return new ChronosTimezone(this._timezone).getComponents(this._date).month;
+      return new ChronosTimezone(this._timezone).getComponents(this._date)
+        .month;
     }
     return this._date.getMonth() + 1;
   }
@@ -470,7 +471,8 @@ export class Chronos implements ChronosLike {
   /** Get the day of week (0-6, Sunday = 0) */
   get dayOfWeek(): DayOfWeek {
     if (this._timezone) {
-      return new ChronosTimezone(this._timezone).getComponents(this._date).dayOfWeek as DayOfWeek;
+      return new ChronosTimezone(this._timezone).getComponents(this._date)
+        .dayOfWeek as DayOfWeek;
     }
     return this._date.getDay() as DayOfWeek;
   }
@@ -486,7 +488,8 @@ export class Chronos implements ChronosLike {
   /** Get the minute (0-59) */
   get minute(): number {
     if (this._timezone) {
-      return new ChronosTimezone(this._timezone).getComponents(this._date).minute;
+      return new ChronosTimezone(this._timezone).getComponents(this._date)
+        .minute;
     }
     return this._date.getMinutes();
   }
@@ -494,7 +497,8 @@ export class Chronos implements ChronosLike {
   /** Get the second (0-59) */
   get second(): number {
     if (this._timezone) {
-      return new ChronosTimezone(this._timezone).getComponents(this._date).second;
+      return new ChronosTimezone(this._timezone).getComponents(this._date)
+        .second;
     }
     return this._date.getSeconds();
   }
