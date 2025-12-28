@@ -55,6 +55,12 @@
 - [x] Relative time formatting
 - [x] Custom locale registration
 
+## ✅ Completed (v2.0.2)
+### Bug Fixes & Enhancements
+- [x] Fixed `dayOfYear()` method to return correct day of the year
+- [x] Short unit 'M' for month is interpreted as 'm' for minute
+- [x] Timezone offset with non-zero minutes loses precision
+
 ---
 
 ## 🔄 Planned (v2.1.0)

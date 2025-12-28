@@ -145,7 +145,8 @@ const UNIT_ALIASES: Record<string, TimeUnit> = {
  * Normalize a time unit to its canonical form
  */
 export function normalizeUnit(unit: AnyTimeUnit | string): TimeUnit {
-  const normalized = UNIT_ALIASES[unit.toLowerCase()] ?? UNIT_ALIASES[unit];
+  // Check original case first for case-sensitive short codes (M vs m, etc.)
+  const normalized = UNIT_ALIASES[unit] ?? UNIT_ALIASES[unit.toLowerCase()];
   if (!normalized) {
     throw new Error(`Invalid time unit: ${unit}`);
   }
@@ -230,7 +231,8 @@ export function getDaysInYear(year: number): number {
  * Get the day of year (1-366)
  */
 export function getDayOfYear(date: Date): number {
-  const start = new Date(Date.UTC(date.getFullYear(), 0, 0));
+  // Use local time consistently (not UTC) to avoid timezone issues
+  const start = new Date(date.getFullYear(), 0, 0);
   const diff = date.getTime() - start.getTime();
   return Math.floor(diff / MILLISECONDS_PER_DAY);
 }

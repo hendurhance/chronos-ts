@@ -124,6 +124,7 @@ export type TimezoneId = keyof typeof TIMEZONES | string;
 export class ChronosTimezone {
   private _identifier: string;
   private _originalOffset: string | null = null;
+  private _extraMinutes: number = 0; // For non-whole-hour offsets like +05:30
   private _cachedOffset: number | null = null;
   private _cachedDate: Date | null = null;
 
@@ -138,6 +139,7 @@ export class ChronosTimezone {
     const normalized = this._normalizeIdentifier(identifier);
     this._identifier = normalized.identifier;
     this._originalOffset = normalized.originalOffset;
+    this._extraMinutes = normalized.extraMinutes;
   }
 
   /**
@@ -146,24 +148,30 @@ export class ChronosTimezone {
   private _normalizeIdentifier(identifier: string): {
     identifier: string;
     originalOffset: string | null;
+    extraMinutes: number;
   } {
     // Handle UTC aliases
     if (
       identifier.toUpperCase() === 'Z' ||
       identifier.toUpperCase() === 'GMT'
     ) {
-      return { identifier: 'UTC', originalOffset: null };
+      return { identifier: 'UTC', originalOffset: null, extraMinutes: 0 };
     }
 
     // Handle offset strings like +05:30, -08:00
     if (/^[+-]\d{2}:\d{2}$/.test(identifier)) {
       // Store original offset and convert to Etc/GMT for internal use
       const offsetHours = this._parseOffsetString(identifier);
-      const etcGmt = `Etc/GMT${offsetHours >= 0 ? '-' : '+'}${Math.abs(Math.floor(offsetHours))}`;
-      return { identifier: etcGmt, originalOffset: identifier };
+      const sign = offsetHours >= 0 ? 1 : -1;
+      const absHours = Math.abs(offsetHours);
+      const wholeHours = Math.floor(absHours);
+      // Calculate extra minutes for non-whole-hour offsets (e.g., +05:30 has 30 extra minutes)
+      const extraMinutes = Math.round((absHours - wholeHours) * 60) * sign;
+      const etcGmt = `Etc/GMT${offsetHours >= 0 ? '-' : '+'}${wholeHours}`;
+      return { identifier: etcGmt, originalOffset: identifier, extraMinutes };
     }
 
-    return { identifier, originalOffset: null };
+    return { identifier, originalOffset: null, extraMinutes: 0 };
   }
 
   /**
@@ -338,9 +346,10 @@ export class ChronosTimezone {
         ),
       );
 
-      return (tzDate.getTime() - utcDate.getTime()) / 60000;
+      // Add extra minutes for non-whole-hour offsets (e.g., +05:30)
+      return (tzDate.getTime() - utcDate.getTime()) / 60000 + this._extraMinutes;
     } catch {
-      return 0;
+      return this._extraMinutes;
     }
   }
 
