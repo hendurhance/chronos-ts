@@ -70,6 +70,43 @@ export class ChronosPeriod implements Iterable<Chronos> {
       interval instanceof ChronosInterval
         ? interval
         : ChronosInterval.create(interval || { days: 1 });
+
+    // Validate interval is not zero to prevent infinite loops
+    if (this._interval.isZero()) {
+      throw new Error('ChronosPeriod: Interval cannot be zero');
+    }
+
+    // Validate interval is not negative
+    if (this._interval.isNegative()) {
+      throw new Error('ChronosPeriod: Interval cannot be negative');
+    }
+
+    // Warn about potentially large iterations (optional safety check)
+    if (this._end !== null) {
+      const durationMs = Math.abs(this._end.valueOf() - this._start.valueOf());
+      const intervalMs = Math.abs(this._interval.totalMilliseconds());
+      
+      if (intervalMs > 0) {
+        const estimatedIterations = durationMs / intervalMs;
+        
+        // Warn if period would generate more than 1 million iterations
+        if (estimatedIterations > 1000000) {
+          console.warn(
+            `ChronosPeriod: Large number of iterations detected (~${Math.floor(estimatedIterations).toLocaleString()}). ` +
+            `This may cause performance issues. Consider using a larger interval or setting a recurrence limit.`
+          );
+        }
+        
+        // Hard limit: throw error if more than 10 million iterations
+        if (estimatedIterations > 10000000) {
+          throw new Error(
+            `ChronosPeriod: Period would generate ~${Math.floor(estimatedIterations).toLocaleString()} iterations, ` +
+            `which exceeds the safety limit of 10 million. Use a larger interval or set explicit recurrence limits.`
+          );
+        }
+      }
+    }
+
     this._recurrences = null;
     this._options = {
       excludeStart: options.excludeStart ?? false,
@@ -439,10 +476,22 @@ export class ChronosPeriod implements Iterable<Chronos> {
    */
   setInterval(interval: Duration | ChronosInterval): ChronosPeriod {
     const period = this._cloneForModification();
-    period._interval =
+    const newInterval =
       interval instanceof ChronosInterval
         ? interval
         : ChronosInterval.create(interval);
+
+    // Validate interval is not zero to prevent infinite loops
+    if (newInterval.isZero()) {
+      throw new Error('ChronosPeriod: Interval cannot be zero');
+    }
+
+    // Validate interval is not negative
+    if (newInterval.isNegative()) {
+      throw new Error('ChronosPeriod: Interval cannot be negative');
+    }
+
+    period._interval = newInterval;
     return period;
   }
 
@@ -459,6 +508,11 @@ export class ChronosPeriod implements Iterable<Chronos> {
    * Set interval by unit
    */
   every(amount: number, unit: AnyTimeUnit): ChronosPeriod {
+    // Validate amount is positive
+    if (amount <= 0) {
+      throw new Error('ChronosPeriod: Amount must be positive');
+    }
+
     const normalizedUnit = normalizeUnit(unit);
     const duration: Duration = {};
 
@@ -710,8 +764,11 @@ export class ChronosPeriod implements Iterable<Chronos> {
    * Get the last date in the period
    */
   last(): Chronos | null {
-    const array = this.toArray();
-    return array.length > 0 ? array[array.length - 1] : null;
+    let lastDate: Chronos | null = null;
+    for (const date of this) {
+      lastDate = date;
+    }
+    return lastDate;
   }
 
   /**
@@ -733,7 +790,12 @@ export class ChronosPeriod implements Iterable<Chronos> {
    */
   contains(date: DateInput): boolean {
     const target = Chronos.parse(date);
-    return this.toArray().some((d) => d.isSame(target, 'day'));
+    for (const d of this) {
+      if (d.isSame(target, 'day')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -843,6 +905,7 @@ export class ChronosPeriod implements Iterable<Chronos> {
 
   /**
    * Get the difference between two periods
+   * Returns the parts of this period that don't overlap with the other period
    */
   diff(other: ChronosPeriod): ChronosPeriod[] {
     if (!this.overlaps(other)) {
@@ -851,24 +914,24 @@ export class ChronosPeriod implements Iterable<Chronos> {
 
     const results: ChronosPeriod[] = [];
     const thisEnd = this._end ?? this.last();
+    const otherEnd = other._end ?? other.last();
 
-    // Before the other period starts
+    // Before the other period starts - create gap from this start to other start
     if (this._start.isBefore(other._start)) {
       results.push(
         new ChronosPeriod(
           this._start,
-          other._start.subtract(this._interval.toDuration()),
+          other._start,
           this._interval,
         ),
       );
     }
 
-    // After the other period ends
-    const otherEnd = other._end ?? other.last();
+    // After the other period ends - create gap from other end to this end
     if (otherEnd && thisEnd && thisEnd.isAfter(otherEnd)) {
       results.push(
         new ChronosPeriod(
-          otherEnd.add(this._interval.toDuration()),
+          otherEnd,
           thisEnd,
           this._interval,
         ),

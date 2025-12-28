@@ -382,15 +382,15 @@ describe('Complex Use Cases', () => {
 
       const workStart = targetDate.setHour(9).setMinute(0);
       const workEnd = targetDate.setHour(17).setMinute(0);
-      // Use millisecond precision for time slots to ensure accurate subtraction
-      const workDay = ChronosPeriod.create(workStart, workEnd, { milliseconds: 1 });
+      // Use 5-minute intervals - good balance: only 96 iterations for 8 hours
+      const workDay = ChronosPeriod.create(workStart, workEnd, { minutes: 5 });
 
       // Create a collection for the full work day
       const workDayCollection = new ChronosPeriodCollection([workDay]);
       
-      // Create meetings with millisecond precision
+      // Create meetings with same 5-minute intervals
       const meetings = new ChronosPeriodCollection(
-        existingMeetings.map(m => ChronosPeriod.create(m.start, m.end, { milliseconds: 1 }))
+        existingMeetings.map(m => ChronosPeriod.create(m.start, m.end, { minutes: 5 }))
       );
       
       // Subtract all existing meetings from the work day to find gaps
@@ -399,10 +399,10 @@ describe('Complex Use Cases', () => {
       // Expect gaps: 10:00-11:00, 12:00-14:00, 15:30-17:00
       expect(gapsCollection.length).toBe(3);
       
-      // Filter for slots with at least 1 hour (minus 2ms for inclusive boundary effects at both ends)
+      // Filter for slots with at least 1 hour (with small tolerance for interval boundaries)
       const availableSlots = gapsCollection.filter(gap => {
-        const durationMs = (gap.end?.valueOf() ?? 0) - gap.start.valueOf();
-        return durationMs >= (60 * 60 * 1000) - 2; 
+        const durationMinutes = gap.end ? gap.end.diff(gap.start, 'minutes') : 0;
+        return durationMinutes >= 55; // Allow 5-minute tolerance for interval alignment
       });
       
       expect(availableSlots.length).toBe(3);
