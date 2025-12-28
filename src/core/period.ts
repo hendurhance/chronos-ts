@@ -989,6 +989,16 @@ export class ChronosPeriod implements Iterable<Chronos> {
         ? interval
         : ChronosInterval.create(interval);
 
+    // Validate that the interval is not zero
+    if (splitInterval.isZero()) {
+      throw new Error('Cannot split by zero interval');
+    }
+
+    // Validate that the interval is positive
+    if (splitInterval.isNegative()) {
+      throw new Error('Cannot split by negative interval');
+    }
+
     const chunks: ChronosPeriod[] = [];
     let current = this._start.clone();
 

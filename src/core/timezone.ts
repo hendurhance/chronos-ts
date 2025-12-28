@@ -347,7 +347,9 @@ export class ChronosTimezone {
       );
 
       // Add extra minutes for non-whole-hour offsets (e.g., +05:30)
-      return (tzDate.getTime() - utcDate.getTime()) / 60000 + this._extraMinutes;
+      return (
+        (tzDate.getTime() - utcDate.getTime()) / 60000 + this._extraMinutes
+      );
     } catch {
       return this._extraMinutes;
     }
