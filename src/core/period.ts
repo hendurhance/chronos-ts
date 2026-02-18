@@ -85,23 +85,23 @@ export class ChronosPeriod implements Iterable<Chronos> {
     if (this._end !== null) {
       const durationMs = Math.abs(this._end.valueOf() - this._start.valueOf());
       const intervalMs = Math.abs(this._interval.totalMilliseconds());
-      
+
       if (intervalMs > 0) {
         const estimatedIterations = durationMs / intervalMs;
-        
+
         // Warn if period would generate more than 1 million iterations
         if (estimatedIterations > 1000000) {
           console.warn(
             `ChronosPeriod: Large number of iterations detected (~${Math.floor(estimatedIterations).toLocaleString()}). ` +
-            `This may cause performance issues. Consider using a larger interval or setting a recurrence limit.`
+              `This may cause performance issues. Consider using a larger interval or setting a recurrence limit.`,
           );
         }
-        
+
         // Hard limit: throw error if more than 10 million iterations
         if (estimatedIterations > 10000000) {
           throw new Error(
             `ChronosPeriod: Period would generate ~${Math.floor(estimatedIterations).toLocaleString()} iterations, ` +
-            `which exceeds the safety limit of 10 million. Use a larger interval or set explicit recurrence limits.`
+              `which exceeds the safety limit of 10 million. Use a larger interval or set explicit recurrence limits.`,
           );
         }
       }
@@ -919,23 +919,13 @@ export class ChronosPeriod implements Iterable<Chronos> {
     // Before the other period starts - create gap from this start to other start
     if (this._start.isBefore(other._start)) {
       results.push(
-        new ChronosPeriod(
-          this._start,
-          other._start,
-          this._interval,
-        ),
+        new ChronosPeriod(this._start, other._start, this._interval),
       );
     }
 
     // After the other period ends - create gap from other end to this end
     if (otherEnd && thisEnd && thisEnd.isAfter(otherEnd)) {
-      results.push(
-        new ChronosPeriod(
-          otherEnd,
-          thisEnd,
-          this._interval,
-        ),
-      );
+      results.push(new ChronosPeriod(otherEnd, thisEnd, this._interval));
     }
 
     return results;

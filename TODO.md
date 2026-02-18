@@ -61,6 +61,11 @@
 - [x] Short unit 'M' for month is interpreted as 'm' for minute
 - [x] Timezone offset with non-zero minutes loses precision
 
+### ✅ Completed (v2.0.3)
+### Bug Fixes & Enhancements
+- [x] Fixed issue with Vite failed to resolve entry point (https://github.com/hendurhance/chronos-ts/issues/5)
+- [x] Improved test coverage for edge cases in date manipulation and formatting
+- [x] Use `tsup` for bundling to ensure better compatibility
 ---
 
 ## 🔄 Planned (v2.1.0)

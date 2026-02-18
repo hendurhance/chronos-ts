@@ -10,7 +10,7 @@
 
 > [!WARNING]
 > This is a major rewrite (v2.0) and is not backward compatible with v1.x. Please refer to the [migration guide](MIGRATION.md) for details.
-
+> For Vite users, ensure you are using version 2.0.3 or later to avoid entry point resolution issues.
 ## ✨ Features
 
 - 🎯 **Intuitive API** — Fluent, chainable methods for all date operations
