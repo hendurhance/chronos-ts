@@ -44,8 +44,11 @@ Creates a Chronos instance for the current date and time.
 #### `Chronos.create(year: number, month: number, date?: number, ...): Chronos`
 Creates a Chronos instance from specific components. Month is 1-indexed (1=January).
 
-#### `Chronos.parse(date: DateInput, format?: string): Chronos`
-Parses a date from various formats (Date object, timestamp, ISO string, or formatted string).
+#### `Chronos.parse(input?: DateInput, timezone?: string): Chronos`
+Parses a date from various inputs (Date object, timestamp, ISO string, or supported date string). The optional second argument is a **timezone**, not a format. To parse a custom format string, use `Chronos.fromFormat`.
+
+#### `Chronos.fromFormat(input: string, format: string, timezone?: string): Chronos`
+Parses a date string using an explicit format pattern (e.g. `Chronos.fromFormat('15-01-2024', 'DD-MM-YYYY')`).
 
 #### `Chronos.fromUnix(timestamp: number): Chronos`
 Creates a Chronos instance from a Unix timestamp (seconds).
@@ -75,10 +78,18 @@ Creates a Chronos instance for yesterday at midnight.
 - `quarter`: The quarter of the year (1-4)
 - `daysInMonth`: Number of days in the current month
 - `isLeapYear`: Boolean indicating if it's a leap year
-- `isWeekend`: Boolean indicating if it's Saturday or Sunday
-- `isWeekday`: Boolean indicating if it's Monday-Friday
 - `unix`: Unix timestamp in seconds
 - `timestamp`: Unix timestamp in milliseconds
+
+### Day Checks
+
+These are **methods** (call with `()`), not getters.
+
+- `isWeekend()`: True if Saturday or Sunday
+- `isWeekday()`: True if Monday–Friday
+- `isToday()`, `isTomorrow()`, `isYesterday()`
+- `isPast()`, `isFuture()`
+- `isSunday()` … `isSaturday()`
 
 ### Setters
 
@@ -91,7 +102,7 @@ All setters return a **new** Chronos instance.
 - `setMinute(value: number)`
 - `setSecond(value: number)`
 - `setMillisecond(value: number)`
-- `set(values: Partial<DateComponents>)`: Set multiple components at once.
+- `set(values: DateTimeSetter)`: Set multiple components at once.
 
 ### Manipulation
 
@@ -137,7 +148,13 @@ All manipulation methods return a **new** Chronos instance.
 ### Difference
 
 - `diff(other: DateInput, unit?: TimeUnit, precise?: boolean)`: Get difference in specified unit.
-- `diffForHumans(other?: DateInput)`: Get a human-readable difference (e.g., "2 days ago").
+- `diffDetailed(other: DateInput)`: Get a full breakdown (years, months, …, milliseconds).
+
+#### Human-readable
+
+- `fromNow(options?)`: Relative time from now (e.g., "2 days ago"). `options.short` gives `"2d ago"`.
+- `from(other, options?)`: Relative time from another date.
+- `to(other, options?)` / `toNow(options?)`: Relative time to another date / to now.
 
 ### Formatting
 
@@ -148,8 +165,9 @@ All manipulation methods return a **new** Chronos instance.
 
 ### Timezones
 
-- `toTimezone(timezone: string)`: Convert to a specific timezone (keeps the same instant, changes local time).
-- `setTimezone(timezone: string)`: Set the timezone (keeps the same local time, changes instant).
+- `toTimezone(timezone: string)`: Return a new instance associated with the given timezone (keeps the same underlying instant; getters and `format` render in the new zone).
+
+> Note: there is no `setTimezone` method on `Chronos`.
 
 ---
 
@@ -188,7 +206,8 @@ Creates an interval representing the difference between two dates.
 - `subtract(other: ChronosInterval)`: Subtract another interval.
 - `multiply(factor: number)`: Multiply the interval.
 - `divide(divisor: number)`: Divide the interval.
-- `invert()`: Invert the signs of all components.
+- `negate()`: Flip the sign of the interval (positive ↔ negative).
+- `abs()`: Absolute (always-positive) interval.
 
 ### Conversion
 
@@ -283,7 +302,16 @@ Creates a new collection.
 
 Utilities for timezone handling.
 
+### Static
+
 - `ChronosTimezone.create(timezone: string)`: Create a timezone instance.
-- `ChronosTimezone.getOffset(timezone: string, date?: Date)`: Get the offset in minutes.
-- `ChronosTimezone.isDST(timezone: string, date?: Date)`: Check if DST is active.
 - `ChronosTimezone.convert(date: Date, fromTz: string, toTz: string)`: Convert a date between timezones.
+- `ChronosTimezone.utc()`, `ChronosTimezone.local()`, `ChronosTimezone.fromOffset(hours: number)`.
+
+### Instance
+
+- `getOffsetMinutes(date?: Date)`: Offset from UTC in minutes.
+- `getOffset(date?: Date)`: Offset info object `{ minutes, hours, string }`.
+- `getOffsetString(date?: Date)`: Offset as a string (e.g. `+05:30`).
+- `isDST(date?: Date)`: Whether DST is active for the given date.
+- `getComponents(date: Date)`: Date/time components in this timezone.

@@ -48,7 +48,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
   private _recurrences: number | null;
   private _options: PeriodOptions;
   private _filters: Array<(date: Chronos, key: number) => boolean>;
-  private _current: number;
   private _locale: LocaleConfig;
 
   // ============================================================================
@@ -114,7 +113,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
       immutable: options.immutable ?? true,
     };
     this._filters = [];
-    this._current = 0;
     this._locale = getLocale('en');
   }
 
@@ -843,11 +841,23 @@ export class ChronosPeriod implements Iterable<Chronos> {
   // ============================================================================
 
   /**
+   * Resolve the effective end of the period.
+   * Returns null for a truly unbounded period (no end and no recurrence limit),
+   * which avoids calling last() — that would iterate until the safety limit and throw.
+   */
+  private _resolvedEnd(): Chronos | null {
+    if (this.isUnbounded) {
+      return null;
+    }
+    return this._end ?? this.last();
+  }
+
+  /**
    * Check if two periods overlap
    */
   overlaps(other: ChronosPeriod): boolean {
-    const thisEnd = this._end ?? this.last();
-    const otherEnd = other._end ?? other.last();
+    const thisEnd = this._resolvedEnd();
+    const otherEnd = other._resolvedEnd();
 
     if (!thisEnd || !otherEnd) {
       return true; // Unbounded periods always overlap
@@ -870,8 +880,8 @@ export class ChronosPeriod implements Iterable<Chronos> {
     const start = this._start.isAfter(other._start)
       ? this._start
       : other._start;
-    const thisEnd = this._end ?? this.last();
-    const otherEnd = other._end ?? other.last();
+    const thisEnd = this._resolvedEnd();
+    const otherEnd = other._resolvedEnd();
 
     if (!thisEnd || !otherEnd) {
       return new ChronosPeriod(start, undefined, this._interval);
@@ -892,8 +902,8 @@ export class ChronosPeriod implements Iterable<Chronos> {
     const start = this._start.isBefore(other._start)
       ? this._start
       : other._start;
-    const thisEnd = this._end ?? this.last();
-    const otherEnd = other._end ?? other.last();
+    const thisEnd = this._resolvedEnd();
+    const otherEnd = other._resolvedEnd();
 
     if (!thisEnd || !otherEnd) {
       return new ChronosPeriod(start, undefined, this._interval);
@@ -913,8 +923,8 @@ export class ChronosPeriod implements Iterable<Chronos> {
     }
 
     const results: ChronosPeriod[] = [];
-    const thisEnd = this._end ?? this.last();
-    const otherEnd = other._end ?? other.last();
+    const thisEnd = this._resolvedEnd();
+    const otherEnd = other._resolvedEnd();
 
     // Before the other period starts - create gap from this start to other start
     if (this._start.isBefore(other._start)) {
@@ -935,8 +945,8 @@ export class ChronosPeriod implements Iterable<Chronos> {
    * Check if this period is adjacent to another
    */
   private _adjacentTo(other: ChronosPeriod): boolean {
-    const thisEnd = this._end ?? this.last();
-    const otherEnd = other._end ?? other.last();
+    const thisEnd = this._resolvedEnd();
+    const otherEnd = other._resolvedEnd();
 
     if (!thisEnd || !otherEnd) {
       return false;
@@ -1054,14 +1064,17 @@ export class ChronosPeriod implements Iterable<Chronos> {
 
     const chunks: ChronosPeriod[] = [];
     let current = this._start.clone();
+    // For day-or-larger intervals each chunk ends on the last whole day; for
+    // sub-day intervals it ends 1ms before the next chunk so chunks stay valid.
+    const subStep =
+      splitInterval.total('days') >= 1 ? { days: 1 } : { milliseconds: 1 };
 
     while (current.isSameOrBefore(this._end)) {
-      const chunkEnd = current
-        .add(splitInterval.toDuration())
-        .subtract({ days: 1 });
+      const nextStart = current.add(splitInterval.toDuration());
+      const chunkEnd = nextStart.subtract(subStep);
       const end = chunkEnd.isAfter(this._end) ? this._end : chunkEnd;
       chunks.push(new ChronosPeriod(current, end, this._interval));
-      current = current.add(splitInterval.toDuration());
+      current = nextStart;
     }
 
     return chunks;

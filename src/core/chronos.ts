@@ -8,6 +8,7 @@ import {
   ChronosConfig,
   Duration,
   AnyTimeUnit,
+  TimeUnit,
   DayOfWeek,
   DateTimeSetter,
   DiffResult,
@@ -37,11 +38,12 @@ import {
   isDuration,
   normalizeUnit,
   padStart,
-  ordinalSuffix,
   MILLISECONDS_PER_SECOND,
   MILLISECONDS_PER_MINUTE,
   MILLISECONDS_PER_HOUR,
   MILLISECONDS_PER_DAY,
+  MILLISECONDS_PER_MONTH,
+  MILLISECONDS_PER_YEAR,
 } from '../utils';
 import { getLocale } from '../locales';
 
@@ -136,20 +138,16 @@ export class Chronos implements ChronosLike {
       return isoDate;
     }
 
-    // Try common formats
-    const formats = [
-      /^(\d{4})-(\d{2})-(\d{2})$/,
-      /^(\d{2})\/(\d{2})\/(\d{4})$/,
-      /^(\d{4})\/(\d{2})\/(\d{2})$/,
-    ];
-
-    for (const format of formats) {
-      const match = input.match(format);
-      if (match) {
-        const parsed = new Date(input);
-        if (isValidDate(parsed)) {
-          return parsed;
-        }
+    // DD/MM/YYYY — only reached when the native parser above failed (e.g. the
+    // day is > 12, so it cannot be interpreted as US MM/DD/YYYY).
+    const dmy = input.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dmy) {
+      const day = parseInt(dmy[1], 10);
+      const month = parseInt(dmy[2], 10);
+      const year = parseInt(dmy[3], 10);
+      const parsed = new Date(year, month - 1, day);
+      if (isValidDate(parsed) && parsed.getMonth() === month - 1) {
+        return parsed;
       }
     }
 
@@ -520,21 +518,43 @@ export class Chronos implements ChronosLike {
 
   /** Get the quarter (1-4) */
   get quarter(): number {
+    if (this._timezone) {
+      const month = new ChronosTimezone(this._timezone).getComponents(
+        this._date,
+      ).month;
+      return Math.floor((month - 1) / 3) + 1;
+    }
     return getQuarter(this._date);
   }
 
   /** Get the day of year (1-366) */
   get dayOfYear(): number {
+    if (this._timezone) {
+      const c = new ChronosTimezone(this._timezone).getComponents(this._date);
+      let days = c.day;
+      for (let m = 1; m < c.month; m++) {
+        days += getDaysInMonth(c.year, m - 1);
+      }
+      return days;
+    }
     return getDayOfYear(this._date);
   }
 
   /** Get the ISO week number (1-53) */
   get week(): number {
+    if (this._timezone) {
+      const c = new ChronosTimezone(this._timezone).getComponents(this._date);
+      return getISOWeek(new Date(c.year, c.month - 1, c.day));
+    }
     return getISOWeek(this._date);
   }
 
   /** Get the ISO week year */
   get weekYear(): number {
+    if (this._timezone) {
+      const c = new ChronosTimezone(this._timezone).getComponents(this._date);
+      return getISOWeekYear(new Date(c.year, c.month - 1, c.day));
+    }
     return getISOWeekYear(this._date);
   }
 
@@ -560,6 +580,12 @@ export class Chronos implements ChronosLike {
 
   /** Get the timezone offset in minutes */
   get offset(): number {
+    if (this._timezone) {
+      // getOffsetMinutes returns minutes *east* of UTC (e.g. +330 for +05:30),
+      // whereas Date.getTimezoneOffset() returns minutes *behind* UTC. Negate so
+      // offsetString/format('Z') keep their existing sign convention.
+      return -new ChronosTimezone(this._timezone).getOffsetMinutes(this._date);
+    }
     return this._date.getTimezoneOffset();
   }
 
@@ -691,8 +717,97 @@ export class Chronos implements ChronosLike {
     }
 
     const normalizedUnit = normalizeUnit(unit);
+    if (this._timezone) {
+      return this.addInZone(amount as number, normalizedUnit);
+    }
     const newDate = addUnits(this._date, amount as number, normalizedUnit);
     return new Chronos(newDate, this._timezone);
+  }
+
+  /**
+   * Add an amount of a single unit while respecting the instance timezone.
+   * Calendar units (day/week/month/quarter/year/…) preserve the wall-clock time
+   * in the zone (DST-safe); absolute units (hour/minute/second/millisecond) add a
+   * fixed offset to the instant. Day clamping mirrors the local-time path.
+   */
+  private addInZone(amount: number, unit: TimeUnit): Chronos {
+    const absoluteMs: Partial<Record<TimeUnit, number>> = {
+      millisecond: 1,
+      second: MILLISECONDS_PER_SECOND,
+      minute: MILLISECONDS_PER_MINUTE,
+      hour: MILLISECONDS_PER_HOUR,
+    };
+
+    const perUnit = absoluteMs[unit];
+    if (perUnit !== undefined) {
+      const newDate = new Date(this._date.getTime() + amount * perUnit);
+      return new Chronos(newDate, this._timezone);
+    }
+
+    const tz = new ChronosTimezone(this._timezone as string);
+    const c = tz.getComponents(this._date);
+    let year = c.year;
+    let month = c.month; // 1-12
+    let day = c.day;
+    const calendarUnit =
+      unit === 'month' ||
+      unit === 'quarter' ||
+      unit === 'year' ||
+      unit === 'decade' ||
+      unit === 'century' ||
+      unit === 'millennium';
+
+    switch (unit) {
+      case 'day':
+        day += amount;
+        break;
+      case 'week':
+        day += amount * 7;
+        break;
+      case 'month':
+        month += amount;
+        break;
+      case 'quarter':
+        month += amount * 3;
+        break;
+      case 'year':
+        year += amount;
+        break;
+      case 'decade':
+        year += amount * 10;
+        break;
+      case 'century':
+        year += amount * 100;
+        break;
+      case 'millennium':
+        year += amount * 1000;
+        break;
+    }
+
+    // Normalize month overflow/underflow into years.
+    year += Math.floor((month - 1) / 12);
+    month = ((((month - 1) % 12) + 12) % 12) + 1;
+
+    // For month-and-larger units, clamp the day to the last day of the target
+    // month (e.g. Jan 31 + 1 month -> Feb 28/29), matching addDuration().
+    if (calendarUnit) {
+      const maxDay = getDaysInMonth(year, month - 1);
+      if (day > maxDay) day = maxDay;
+    }
+
+    const date = Chronos.dateFromComponents(
+      {
+        year,
+        month,
+        day,
+        hour: c.hour,
+        minute: c.minute,
+        second: c.second,
+        millisecond: this._date.getMilliseconds(),
+      },
+      this._timezone as string,
+    );
+    return new Chronos(date, this._timezone);
   }
 
   /**
@@ -724,6 +839,9 @@ export class Chronos implements ChronosLike {
    */
   startOf(unit: AnyTimeUnit): Chronos {
     const normalizedUnit = normalizeUnit(unit);
+    if (this._timezone) {
+      return this.boundaryInZone(normalizedUnit, false);
+    }
     const newDate = startOf(this._date, normalizedUnit);
     return new Chronos(newDate, this._timezone);
   }
@@ -740,8 +858,102 @@ export class Chronos implements ChronosLike {
    */
   endOf(unit: AnyTimeUnit): Chronos {
     const normalizedUnit = normalizeUnit(unit);
+    if (this._timezone) {
+      return this.boundaryInZone(normalizedUnit, true);
+    }
     const newDate = endOf(this._date, normalizedUnit);
     return new Chronos(newDate, this._timezone);
+  }
+
+  /**
+   * Compute the start/end boundary of a unit in the instance timezone.
+   * The plain `startOf`/`endOf` helpers operate on local wall-clock fields of the
+   * underlying Date, which is wrong when an explicit timezone is attached. Here we
+   * read the wall-clock components in the target zone, snap them to the boundary,
+   * and rebuild the instant (dateFromComponents handles DST).
+   */
+  private boundaryInZone(unit: TimeUnit, end: boolean): Chronos {
+    if (unit === 'millisecond') {
+      return this.clone();
+    }
+
+    const tz = new ChronosTimezone(this._timezone as string);
+    const c = tz.getComponents(this._date);
+    const comp: DateTimeComponents = {
+      year: c.year,
+      month: c.month,
+      day: c.day,
+      hour: c.hour,
+      minute: c.minute,
+      second: c.second,
+      millisecond: this._date.getMilliseconds(),
+    };
+
+    const resetTime = (): void => {
+      comp.hour = end ? 23 : 0;
+      comp.minute = end ? 59 : 0;
+      comp.second = end ? 59 : 0;
+      comp.millisecond = end ? 999 : 0;
+    };
+
+    switch (unit) {
+      case 'second':
+        comp.millisecond = end ? 999 : 0;
+        break;
+      case 'minute':
+        comp.second = end ? 59 : 0;
+        comp.millisecond = end ? 999 : 0;
+        break;
+      case 'hour':
+        comp.minute = end ? 59 : 0;
+        comp.second = end ? 59 : 0;
+        comp.millisecond = end ? 999 : 0;
+        break;
+      case 'day':
+        resetTime();
+        break;
+      case 'week':
+        resetTime();
+        // Sunday-based week, matching the local-time helpers.
+        comp.day = c.day + (end ? 6 - c.dayOfWeek : -c.dayOfWeek);
+        break;
+      case 'month':
+        resetTime();
+        comp.day = end ? getDaysInMonth(c.year, c.month - 1) : 1;
+        break;
+      case 'quarter': {
+        resetTime();
+        const qStartMonth = Math.floor((c.month - 1) / 3) * 3 + 1;
+        if (end) {
+          comp.month = qStartMonth + 2;
+          comp.day = getDaysInMonth(c.year, comp.month - 1);
+        } else {
+          comp.month = qStartMonth;
+          comp.day = 1;
+        }
+        break;
+      }
+      case 'year':
+        resetTime();
+        comp.month = end ? 12 : 1;
+        comp.day = end ? 31 : 1;
+        break;
+      case 'decade':
+      case 'century':
+      case 'millennium': {
+        resetTime();
+        comp.month = end ? 12 : 1;
+        comp.day = end ? 31 : 1;
+        const span =
+          unit === 'decade' ? 10 : unit === 'century' ? 100 : 1000;
+        const base = Math.floor(c.year / span) * span;
+        comp.year = end ? base + span - 1 : base;
+        break;
+      }
+    }
+
+    const date = Chronos.dateFromComponents(comp, this._timezone as string);
+    return new Chronos(date, this._timezone);
   }
 
   // ============================================================================
@@ -988,6 +1200,12 @@ export class Chronos implements ChronosLike {
           return diffMs / MILLISECONDS_PER_DAY;
         case 'week':
           return diffMs / (MILLISECONDS_PER_DAY * 7);
+        case 'month':
+          return diffMs / MILLISECONDS_PER_MONTH;
+        case 'quarter':
+          return diffMs / (MILLISECONDS_PER_MONTH * 3);
+        case 'year':
+          return diffMs / MILLISECONDS_PER_YEAR;
         default:
           break;
       }
@@ -1066,8 +1284,7 @@ export class Chronos implements ChronosLike {
     const absDiff = Math.abs(diffMs);
     const isFuture = diffMs > 0;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { short: _short = false, absolute = false } = options;
+    const { short = false, absolute = false } = options;
     const relative = this._locale.relativeTime;
 
     let value: number;
@@ -1096,11 +1313,29 @@ export class Chronos implements ChronosLike {
       unit = value === 1 ? 'y' : 'yy';
     }
 
-    const relativeStr =
-      (relative as Record<string, string>)[unit]?.replace(
-        '%d',
-        String(value),
-      ) ?? `${value} ${unit}`;
+    const shortUnits: Record<string, string> = {
+      s: 's',
+      ss: 's',
+      m: 'm',
+      mm: 'm',
+      h: 'h',
+      hh: 'h',
+      d: 'd',
+      dd: 'd',
+      w: 'w',
+      ww: 'w',
+      M: 'mo',
+      MM: 'mo',
+      y: 'y',
+      yy: 'y',
+    };
+
+    const relativeStr = short
+      ? `${value}${shortUnits[unit] ?? unit}`
+      : ((relative as Record<string, string>)[unit]?.replace(
+          '%d',
+          String(value),
+        ) ?? `${value} ${unit}`);
 
     if (absolute) {
       return relativeStr;
@@ -1197,7 +1432,7 @@ export class Chronos implements ChronosLike {
       Z: () => this.offsetString,
       ZZ: () => this.offsetString.replace(':', ''),
       Q: () => String(this.quarter),
-      Do: () => ordinalSuffix(this.date),
+      Do: () => this._locale.ordinal(this.date),
       W: () => String(this.week),
       WW: () => padStart(this.week, 2),
       X: () => String(this.unix),

@@ -1,6 +1,6 @@
 {
   "name": "chronos-ts",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "A comprehensive TypeScript library for date and time manipulation, inspired by Carbon PHP. Features immutable API, intervals, periods, timezones, and i18n support.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

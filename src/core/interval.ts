@@ -70,9 +70,11 @@ export class ChronosInterval {
     this._days = duration.days ?? 0;
     this._hours = duration.hours ?? 0;
     this._minutes = duration.minutes ?? 0;
-    this._seconds = Math.floor(duration.seconds ?? 0);
+    const totalSeconds = duration.seconds ?? 0;
+    this._seconds = Math.trunc(totalSeconds);
     this._milliseconds =
-      duration.milliseconds ?? ((duration.seconds ?? 0) % 1) * 1000;
+      duration.milliseconds ??
+      Math.round((totalSeconds - this._seconds) * 1000);
     this._locale = getLocale('en');
     this._inverted = inverted;
   }

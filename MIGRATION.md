@@ -269,10 +269,10 @@ import { ChronosPeriodCollection } from 'chronos-ts';
 // Single period operations
 const overlaps = period1.overlaps(period2);             // boolean
 const intersection = period1.intersect(period2);        // ChronosPeriod | null
-const adjacent = period1.touches(period2);              // boolean
 
 // Collection operations
 const collection = new ChronosPeriodCollection([period1, period2]);
+const adjacent = collection.touchesWith(period2);       // boolean (adjacency)
 const gaps = collection.gaps();                         // ChronosPeriodCollection
 const merged = collection.union();                      // ChronosPeriodCollection
 const overlapping = collection.overlapAll();            // ChronosPeriodCollection
@@ -508,7 +508,7 @@ const future = now
   .startOf('day');
 
 // Human-readable differences
-console.log(now.diffForHumans(birthday));  // "34 years ago"
+console.log(birthday.fromNow());  // "34 years ago"
 ```
 
 ### 2. Timezone Support
@@ -517,7 +517,7 @@ console.log(now.diffForHumans(birthday));  // "34 years ago"
 import { ChronosTimezone, Timezones } from 'chronos-ts';
 
 const nyTime = Chronos.now('America/New_York');
-const tokyoTime = nyTime.setTimezone('Asia/Tokyo');
+const tokyoTime = nyTime.toTimezone('Asia/Tokyo');
 
 // Timezone info
 const tz = ChronosTimezone.create('America/New_York');
@@ -535,7 +535,7 @@ console.log(spanish.format('dddd, D [de] MMMM [de] YYYY'));
 // "viernes, 15 de marzo de 2024"
 
 // Human-readable in locale
-console.log(spanish.diffForHumans());  // "hace 2 días"
+console.log(spanish.fromNow());  // "hace 2 días"
 ```
 
 ### 4. Period Collections
@@ -701,7 +701,7 @@ class Subscription {
   }
 
   daysRemaining(): number {
-    return this.endDate.diffInDays(Chronos.now());
+    return this.endDate.diff(Chronos.now(), 'days');
   }
 }
 
