@@ -335,7 +335,10 @@ export class ChronosTimezone {
         day: 'numeric',
         hour: 'numeric',
         minute: 'numeric',
-        hour12: false,
+        // `hour12: false` resolves to the locale's default cycle, which on some
+        // ICU builds (Node 18 and 20) is h24 and renders midnight as hour 24.
+        // h23 is explicit and gives 0-23 everywhere.
+        hourCycle: 'h23',
       };
       const utcFormatter = cachedFormatter('offset', 'UTC', offsetOptions);
       const tzFormatter = cachedFormatter(
@@ -399,7 +402,9 @@ export class ChronosTimezone {
           result.day = parseInt(part.value, 10);
           break;
         case 'hour':
-          result.hour = parseInt(part.value, 10);
+          // Guard against an ICU build that still hands back h24 despite the
+          // requested hourCycle; the date fields stay correct, only the hour wraps.
+          result.hour = parseInt(part.value, 10) % 24;
           break;
         case 'minute':
           result.minute = parseInt(part.value, 10);
@@ -562,7 +567,7 @@ export class ChronosTimezone {
       minute: 'numeric',
       second: 'numeric',
       weekday: 'short',
-      hour12: false,
+      hourCycle: 'h23',
     });
 
     const parts = formatter.formatToParts(date);
@@ -598,7 +603,9 @@ export class ChronosTimezone {
           result.day = parseInt(part.value, 10);
           break;
         case 'hour':
-          result.hour = parseInt(part.value, 10);
+          // Guard against an ICU build that still hands back h24 despite the
+          // requested hourCycle; the date fields stay correct, only the hour wraps.
+          result.hour = parseInt(part.value, 10) % 24;
           break;
         case 'minute':
           result.minute = parseInt(part.value, 10);
