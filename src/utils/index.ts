@@ -245,15 +245,12 @@ export function getISOWeek(date: Date): number {
   // Set to nearest Thursday: current date + 4 - current day number (make Sunday=7)
   const dayNr = (date.getDay() + 6) % 7;
   target.setDate(target.getDate() - dayNr + 3);
-  // Store first Thursday of year
   const firstThursday = target.valueOf();
-  // Set to start of year
   target.setMonth(0, 1);
   // If not Thursday, set to first Thursday of year
   if (target.getDay() !== 4) {
     target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
   }
-  // Calculate week number
   return (
     1 + Math.ceil((firstThursday - target.valueOf()) / MILLISECONDS_PER_WEEK)
   );

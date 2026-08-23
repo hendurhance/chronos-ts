@@ -75,7 +75,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
       throw new Error('ChronosPeriod: Interval cannot be zero');
     }
 
-    // Validate interval is not negative
     if (this._interval.isNegative()) {
       throw new Error('ChronosPeriod: Interval cannot be negative');
     }
@@ -88,7 +87,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
       if (intervalMs > 0) {
         const estimatedIterations = durationMs / intervalMs;
 
-        // Warn if period would generate more than 1 million iterations
         if (estimatedIterations > 1000000) {
           console.warn(
             `ChronosPeriod: Large number of iterations detected (~${Math.floor(estimatedIterations).toLocaleString()}). ` +
@@ -96,7 +94,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
           );
         }
 
-        // Hard limit: throw error if more than 10 million iterations
         if (estimatedIterations > 10000000) {
           throw new Error(
             `ChronosPeriod: Period would generate ~${Math.floor(estimatedIterations).toLocaleString()} iterations, ` +
@@ -484,7 +481,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
       throw new Error('ChronosPeriod: Interval cannot be zero');
     }
 
-    // Validate interval is not negative
     if (newInterval.isNegative()) {
       throw new Error('ChronosPeriod: Interval cannot be negative');
     }
@@ -506,7 +502,6 @@ export class ChronosPeriod implements Iterable<Chronos> {
    * Set interval by unit
    */
   every(amount: number, unit: AnyTimeUnit): ChronosPeriod {
-    // Validate amount is positive
     if (amount <= 0) {
       throw new Error('ChronosPeriod: Amount must be positive');
     }
@@ -681,14 +676,12 @@ export class ChronosPeriod implements Iterable<Chronos> {
     let current = this._start.clone();
     let count = 0;
 
-    // Handle excludeStart
     if (this._options.excludeStart) {
       current = this._applyInterval(current);
       count++;
     }
 
     while (this._shouldContinue(current, count)) {
-      // Apply filters
       if (this._passesFilters(current, count)) {
         yield this._options.immutable ? current.clone() : current;
       }
@@ -709,12 +702,10 @@ export class ChronosPeriod implements Iterable<Chronos> {
    * Check if iteration should continue
    */
   private _shouldContinue(date: Chronos, count: number): boolean {
-    // Check recurrence limit
     if (this._recurrences !== null && count >= this._recurrences) {
       return false;
     }
 
-    // Check end date
     if (this._end !== null) {
       if (this._options.excludeEnd) {
         return date.isBefore(this._end);
@@ -1052,12 +1043,10 @@ export class ChronosPeriod implements Iterable<Chronos> {
         ? interval
         : ChronosInterval.create(interval);
 
-    // Validate that the interval is not zero
     if (splitInterval.isZero()) {
       throw new Error('Cannot split by zero interval');
     }
 
-    // Validate that the interval is positive
     if (splitInterval.isNegative()) {
       throw new Error('Cannot split by negative interval');
     }

@@ -129,10 +129,50 @@ export class Chronos implements ChronosLike {
   }
 
   /**
-   * Parse a date string
+   * Matches an offset-less ISO 8601 date or date-time. Strings carrying a `Z` or
+   * a numeric offset deliberately fail to match: those name an unambiguous
+   * instant and must keep going through the native parser. Fractional seconds
+   * are open-ended so that sub-millisecond inputs (`.123456`, as emitted by
+   * Postgres and Python) take this path too rather than silently falling back.
    */
+  private static readonly OFFSETLESS_ISO =
+    /^(\d{4})-(\d{2})-(\d{2})(?:[Tt ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/;
+
   private parseString(input: string): Date {
-    // Try ISO 8601 first
+    // An offset-less string is a wall-clock reading, not an instant. With a
+    // timezone attached it has to be resolved in that zone — the native parser
+    // would resolve it in the process timezone instead.
+    const iso = input.match(Chronos.OFFSETLESS_ISO);
+    if (iso && this._timezone) {
+      const year = parseInt(iso[1], 10);
+      const month = parseInt(iso[2], 10);
+      const day = parseInt(iso[3], 10);
+      const hour = iso[4] ? parseInt(iso[4], 10) : 0;
+      const minute = iso[5] ? parseInt(iso[5], 10) : 0;
+      const second = iso[6] ? parseInt(iso[6], 10) : 0;
+      // Truncate rather than round, matching the native parser.
+      const millisecond = iso[7]
+        ? parseInt(iso[7].slice(0, 3).padEnd(3, '0'), 10)
+        : 0;
+
+      // Reject out-of-range fields rather than letting them roll over, so an
+      // invalid string still falls through to the "unable to parse" error.
+      if (
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= getDaysInMonth(year, month - 1) &&
+        hour <= 23 &&
+        minute <= 59 &&
+        second <= 59
+      ) {
+        return Chronos.dateFromComponents(
+          { year, month, day, hour, minute, second, millisecond },
+          this._timezone,
+        );
+      }
+    }
+
     const isoDate = new Date(input);
     if (isValidDate(isoDate)) {
       return isoDate;
@@ -145,18 +185,21 @@ export class Chronos implements ChronosLike {
       const day = parseInt(dmy[1], 10);
       const month = parseInt(dmy[2], 10);
       const year = parseInt(dmy[3], 10);
-      const parsed = new Date(year, month - 1, day);
-      if (isValidDate(parsed) && parsed.getMonth() === month - 1) {
-        return parsed;
+      if (
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= getDaysInMonth(year, month - 1)
+      ) {
+        return this._timezone
+          ? Chronos.dateFromComponents({ year, month, day }, this._timezone)
+          : new Date(year, month - 1, day);
       }
     }
 
     throw new Error(`Unable to parse date: ${input}`);
   }
 
-  /**
-   * Helper to create a date from components in a specific timezone
-   */
   private static dateFromComponents(
     components: DateTimeComponents,
     timezone: string,
@@ -1021,15 +1064,30 @@ export class Chronos implements ChronosLike {
   // ============================================================================
 
   /**
+   * Start-of-unit instant for `date`, evaluated in this instance's timezone.
+   * Unit comparisons must bucket both operands with the same zone; the plain
+   * `startOf` helper reads local wall-clock fields and would bucket them by the
+   * process timezone instead.
+   */
+  private unitStart(date: Date, unit: TimeUnit): number {
+    if (this._timezone) {
+      return new Chronos(date, this._timezone)
+        .boundaryInZone(unit, false)
+        .valueOf();
+    }
+    return startOf(date, unit).getTime();
+  }
+
+  /**
    * Check if this date is before another
    */
   isBefore(other: DateInput, unit?: AnyTimeUnit): boolean {
-    const otherDate = Chronos.parse(other);
+    const otherDate = Chronos.parse(other, this._timezone);
     if (unit) {
       const normalizedUnit = normalizeUnit(unit);
       return (
-        startOf(this._date, normalizedUnit) <
-        startOf(otherDate._date, normalizedUnit)
+        this.unitStart(this._date, normalizedUnit) <
+        this.unitStart(otherDate._date, normalizedUnit)
       );
     }
     return this._date < otherDate._date;
@@ -1039,12 +1097,12 @@ export class Chronos implements ChronosLike {
    * Check if this date is after another
    */
   isAfter(other: DateInput, unit?: AnyTimeUnit): boolean {
-    const otherDate = Chronos.parse(other);
+    const otherDate = Chronos.parse(other, this._timezone);
     if (unit) {
       const normalizedUnit = normalizeUnit(unit);
       return (
-        startOf(this._date, normalizedUnit) >
-        startOf(otherDate._date, normalizedUnit)
+        this.unitStart(this._date, normalizedUnit) >
+        this.unitStart(otherDate._date, normalizedUnit)
       );
     }
     return this._date > otherDate._date;
@@ -1054,12 +1112,12 @@ export class Chronos implements ChronosLike {
    * Check if this date is the same as another
    */
   isSame(other: DateInput, unit?: AnyTimeUnit): boolean {
-    const otherDate = Chronos.parse(other);
+    const otherDate = Chronos.parse(other, this._timezone);
     if (unit) {
       const normalizedUnit = normalizeUnit(unit);
       return (
-        startOf(this._date, normalizedUnit).getTime() ===
-        startOf(otherDate._date, normalizedUnit).getTime()
+        this.unitStart(this._date, normalizedUnit) ===
+        this.unitStart(otherDate._date, normalizedUnit)
       );
     }
     return this._date.getTime() === otherDate._date.getTime();
@@ -1088,8 +1146,8 @@ export class Chronos implements ChronosLike {
     unit?: AnyTimeUnit,
     inclusivity: '()' | '[]' | '[)' | '(]' = '()',
   ): boolean {
-    const startDate = Chronos.parse(start);
-    const endDate = Chronos.parse(end);
+    const startDate = Chronos.parse(start, this._timezone);
+    const endDate = Chronos.parse(end, this._timezone);
 
     const leftInclusive = inclusivity[0] === '[';
     const rightInclusive = inclusivity[1] === ']';
@@ -1110,17 +1168,17 @@ export class Chronos implements ChronosLike {
 
   /** Check if this date is today */
   isToday(): boolean {
-    return this.isSame(Chronos.today(), 'day');
+    return this.isSame(Chronos.today(this._timezone), 'day');
   }
 
   /** Check if this date is tomorrow */
   isTomorrow(): boolean {
-    return this.isSame(Chronos.tomorrow(), 'day');
+    return this.isSame(Chronos.tomorrow(this._timezone), 'day');
   }
 
   /** Check if this date is yesterday */
   isYesterday(): boolean {
-    return this.isSame(Chronos.yesterday(), 'day');
+    return this.isSame(Chronos.yesterday(this._timezone), 'day');
   }
 
   /** Check if this date is in the past */
@@ -1184,7 +1242,7 @@ export class Chronos implements ChronosLike {
     unit: AnyTimeUnit = 'millisecond',
     precise = false,
   ): number {
-    const otherDate = Chronos.parse(other);
+    const otherDate = Chronos.parse(other, this._timezone);
     const normalizedUnit = normalizeUnit(unit);
 
     if (precise) {
@@ -1211,7 +1269,45 @@ export class Chronos implements ChronosLike {
       }
     }
 
+    if (this._timezone) {
+      const calendar = this.calendarDiffInZone(otherDate, normalizedUnit);
+      if (calendar !== null) {
+        return calendar;
+      }
+    }
+
     return diffInUnits(this._date, otherDate._date, normalizedUnit);
+  }
+
+  /**
+   * Whole-unit difference for calendar units, read from wall-clock fields in the
+   * instance timezone. `diffInUnits` uses local `Date` getters, so it would count
+   * months and years in the process timezone. Returns null for the units that are
+   * pure instant arithmetic and so need no zone handling.
+   */
+  private calendarDiffInZone(other: Chronos, unit: TimeUnit): number | null {
+    const years = this.year - other.year;
+
+    switch (unit) {
+      case 'year':
+        return years;
+      case 'decade':
+        return Math.floor(years / 10);
+      case 'century':
+        return Math.floor(years / 100);
+      case 'millennium':
+        return Math.floor(years / 1000);
+      case 'month':
+      case 'quarter': {
+        let months = years * 12 + (this.month - other.month);
+        if (this.date < other.date) {
+          months--;
+        }
+        return unit === 'quarter' ? Math.floor(months / 3) : months;
+      }
+      default:
+        return null;
+    }
   }
 
   /**

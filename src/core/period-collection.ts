@@ -247,7 +247,6 @@ export class ChronosPeriodCollection implements Iterable<ChronosPeriod> {
   normalize(): ChronosPeriod[] {
     if (this._periods.length === 0) return [];
 
-    // Sort by start
     const sorted = this._periods.slice().sort((a, b) => {
       const aStart = a.start.toDate().getTime();
       const bStart = b.start.toDate().getTime();
@@ -303,7 +302,6 @@ export class ChronosPeriodCollection implements Iterable<ChronosPeriod> {
 
     const overlaps: ChronosPeriod[] = [];
 
-    // Sort periods by start date
     const sorted = this._periods
       .slice()
       .sort((a, b) => a.start.toDate().getTime() - b.start.toDate().getTime());
@@ -313,7 +311,6 @@ export class ChronosPeriodCollection implements Iterable<ChronosPeriod> {
       for (let j = i + 1; j < sorted.length; j++) {
         const intersection = sorted[i].intersect(sorted[j]);
         if (intersection) {
-          // Check if this intersection is not already covered
           const isDuplicate = overlaps.some(
             (existing) =>
               existing.start.isSame(intersection.start, 'day') &&
