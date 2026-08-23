@@ -6,6 +6,32 @@
 import { TimezoneInfo, TimezoneOffset, DSTransition } from '../types';
 
 // ============================================================================
+// Formatter Cache
+// ============================================================================
+
+/**
+ * `Intl.DateTimeFormat` construction dominates the cost of every zone-aware
+ * read, and the zone-aware paths build one per call. Formatters are immutable
+ * once constructed, so they are shared per (option-set, timezone). The key
+ * space is bounded by the number of timezones actually used.
+ */
+const FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+
+function cachedFormatter(
+  shape: string,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const key = `${shape}|${timeZone}`;
+  let formatter = FORMATTER_CACHE.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { ...options, timeZone });
+    FORMATTER_CACHE.set(key, formatter);
+  }
+  return formatter;
+}
+
+// ============================================================================
 // Timezone Data
 // ============================================================================
 
@@ -302,26 +328,21 @@ export class ChronosTimezone {
    */
   getOffsetMinutes(date: Date = new Date()): number {
     try {
-      // Create formatters for UTC and target timezone
-      const utcFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'UTC',
+      // Shared formatters for UTC and the target timezone
+      const offsetOptions: Intl.DateTimeFormatOptions = {
         year: 'numeric',
         month: 'numeric',
         day: 'numeric',
         hour: 'numeric',
         minute: 'numeric',
         hour12: false,
-      });
-
-      const tzFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: this._identifier,
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false,
-      });
+      };
+      const utcFormatter = cachedFormatter('offset', 'UTC', offsetOptions);
+      const tzFormatter = cachedFormatter(
+        'offset',
+        this._identifier,
+        offsetOptions,
+      );
 
       const utcParts = this._parseIntlParts(utcFormatter.formatToParts(date));
       const tzParts = this._parseIntlParts(tzFormatter.formatToParts(date));
@@ -533,8 +554,7 @@ export class ChronosTimezone {
     second: number;
     dayOfWeek: number;
   } {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: this._identifier,
+    const formatter = cachedFormatter('components', this._identifier, {
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',

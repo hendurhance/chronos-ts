@@ -212,5 +212,4 @@ export {
 // Default Export
 // ============================================================================
 
-// Export Chronos as default for convenience
 export { Chronos as default } from './core';

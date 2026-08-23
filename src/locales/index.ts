@@ -5,7 +5,6 @@
 
 import { LocaleConfig } from '../types';
 
-// Re-export LocaleConfig for convenience
 export type { LocaleConfig } from '../types';
 
 /**
