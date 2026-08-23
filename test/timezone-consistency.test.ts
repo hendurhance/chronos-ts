@@ -1,19 +1,7 @@
 import { Chronos } from '../src/core/chronos';
 
-/**
- * Regressions for GitHub issues #7 and #8.
- *
- * Both bugs made results depend on the process `TZ`: parsing resolved
- * offset-less strings in the process timezone, and unit comparisons bucketed
- * both operands by the process timezone. Every assertion here is therefore
- * written to hold under any process timezone.
- */
 describe('Timezone consistency', () => {
   const MADRID = 'Europe/Madrid';
-
-  // ==========================================================================
-  // Issue #7 - Chronos.parse() ignores the supplied timezone
-  // ==========================================================================
 
   describe('parse() resolves offset-less strings in the supplied timezone', () => {
     test('offset-less date-time matches create()', () => {
@@ -83,8 +71,6 @@ describe('Timezone consistency', () => {
     });
 
     test('sub-millisecond fractional seconds take the zone path', () => {
-      // Postgres/Python emit microseconds; these must not fall back to the
-      // native parser. Extra digits are truncated, as the native parser does.
       expect(
         Chronos.parse('2026-03-28T12:00:00.123456', MADRID).toISOString(),
       ).toBe('2026-03-28T11:00:00.123Z');
@@ -173,9 +159,50 @@ describe('Timezone consistency', () => {
     });
   });
 
-  // ==========================================================================
-  // Issue #8 - unit comparisons use the process timezone
-  // ==========================================================================
+  describe('midnight in a zone reads as hour 0, not 24', () => {
+    const midnight = Chronos.fromMillis(
+      Date.parse('2026-03-27T23:00:00Z'),
+      MADRID,
+    );
+
+    test('the hour getter returns 0', () => {
+      expect(midnight.hour).toBe(0);
+    });
+
+    test('format() prints 00:00:00', () => {
+      expect(midnight.format('YYYY-MM-DD HH:mm:ss')).toBe(
+        '2026-03-28 00:00:00',
+      );
+    });
+
+    test('create() at midnight lands on the right instant', () => {
+      expect(
+        Chronos.create(2026, 3, 28, 0, 0, 0, 0, MADRID).toISOString(),
+      ).toBe('2026-03-27T23:00:00.000Z');
+    });
+
+    test('startOf/endOf day are the right instants', () => {
+      expect(midnight.startOf('day').toISOString()).toBe(
+        '2026-03-27T23:00:00.000Z',
+      );
+      expect(midnight.endOf('day').toISOString()).toBe(
+        '2026-03-28T22:59:59.999Z',
+      );
+    });
+
+    test('midnight in zones at every offset sign', () => {
+      for (const [zone, utc] of [
+        ['Asia/Tokyo', '2026-03-27T15:00:00Z'],
+        ['America/New_York', '2026-03-28T04:00:00Z'],
+        ['Asia/Kolkata', '2026-03-27T18:30:00Z'],
+        ['UTC', '2026-03-28T00:00:00Z'],
+      ] as const) {
+        const m = Chronos.fromMillis(Date.parse(utc), zone);
+        expect(m.hour).toBe(0);
+        expect(m.format('YYYY-MM-DD HH:mm')).toBe('2026-03-28 00:00');
+      }
+    });
+  });
 
   describe('unit comparisons use the instance timezone', () => {
     // Both instants fall on 30 March 2026 in Madrid, but on different days in UTC.
